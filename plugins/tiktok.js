@@ -6,7 +6,6 @@ const {
 } = require('@whiskeysockets/baileys')
 
 const config = require('../settings')
-const fetch = require('node-fetch');
 const fg = require('api-dylux');
 const apkdl = require('../lib/apkdl')
 const { mediafireDl } = require('mfiredlcore-vihangayt')
