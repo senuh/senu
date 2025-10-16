@@ -1,4 +1,5 @@
 const config = require('../settings')
+const moment = require("moment")
 const os = require('os')
 const fs = require('fs')
 const si = require('systeminformation')
@@ -47,96 +48,118 @@ else BOTOW = "*You are not bot\'s owner or moderator !*"
 //============================================================================
 
 
+let botStartTime = Date.now(); // Bot start time record
+
+// ✅ Random Voice Clips List එක
+const VOICE_CLIPS = [
+    "https://files.catbox.moe/r4r0hz.mp3",
+    "https://files.catbox.moe/3pzzgr.mp3",
+    "https://files.catbox.moe/qvpa5o.mp3",
+    "https://files.catbox.moe/y29b3n.mp3",
+    "https://files.catbox.moe/w7yg8f.mp3",
+    "https://files.catbox.moe/4rm2fz.mp3",
+    "https://files.catbox.moe/gr8wlt.mp3",
+    "https://files.catbox.moe/xvue61.mp3",
+    "https://files.catbox.moe/uosvov.mp3",
+    "https://files.catbox.moe/2vgkwr.mp3",
+    "https://files.catbox.moe/gqw8fl.m4a",
+    "https://files.catbox.moe/mc5r2s.mp3",
+    "https://files.catbox.moe/ck4reh.mp3",
+    "https://files.catbox.moe/ypbfyt.mp3",
+    "https://files.catbox.moe/75p1zt.mp3",
+    "https://files.catbox.moe/rd21pi.mp3",
+    "https://files.catbox.moe/ggebie.mp3",
+    "https://files.catbox.moe/r4r0hz.mp3"
+];
+
+const ALIVE_VIDEO = "https://files.catbox.moe/52py80.mp4"; // මෙතැන valid MP4 video link එකක් දාන්න
+
 cmd({
-    pattern: "rukshan",
-    desc: "about",
-    react: "❕",
+    pattern: "alive3",
+    desc: "Check if the bot is active.",
+    category: "info",
+    react: "🤖",
     filename: __filename
-},
-async(conn, mek, m,{from, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
+}, async (conn, mek, m, { reply, from }) => {
+    try {
+        const pushname = m.pushName || "User";
+        const currentTime = moment().format("HH:mm:ss");
+        const currentDate = moment().format("dddd, MMMM Do YYYY");
 
-let desc = `
+        const runtimeMilliseconds = Date.now() - botStartTime;
+        const runtimeSeconds = Math.floor((runtimeMilliseconds / 1000) % 60);
+        const runtimeMinutes = Math.floor((runtimeMilliseconds / (1000 * 60)) % 60);
+        const runtimeHours = Math.floor(runtimeMilliseconds / (1000 * 60 * 60));
 
-ABOUT ME – RED SAMURAY
+        const formattedInfo = `
+⛩️ *QUEEN DINU MD STATUS* ⛩️
 
-Name: Rukshan
-Alias: RED SAMURAY
-Age: 19+
-Location: Gampaha, Sri Lanka
-Languages: Sinhala, English, Currently Learning Japanese
-Profession: Creative Technologist, Bot Developer, Digital Designer
-Team: LEGION OF DOOM
-Dream Destinations: Japan & South Korea
-Life Goal: Build a powerful future through tech and business — create Sri Lanka’s largest pawnshop network and the biggest vehicle yard, while giving my mother the life she deserves.
+Hey 👋🏻 ${pushname}
 
+🕒 *Time*: ${currentTime}
 
----
+📅 *Date*: ${currentDate}
 
-WHO I AM
+⏳ *Uptime*: ${runtimeHours} hours, ${runtimeMinutes} minutes, ${runtimeSeconds} seconds
 
-I’m not just another face in the crowd — I’m RED SAMURAY, a self-made digital warrior. Born in the shadows of struggle, but trained in the light of purpose. I live not to follow trends, but to create legacies. I’ve made a vow: To rise, no matter how deep the fall.
+*🤖sᴛᴀᴛᴜs*: *ꜱᴏʟᴏ ʟᴇᴠᴇʟɪɴɢ-ᴍᴅ ᴀʟɪᴠᴇ ᴀɴᴅ ʀᴇᴀᴅʏ*
 
+*🤍ᴍᴀᴅᴇ ᴡɪᴛʜ ʟᴏᴠᴇ*
 
----
+⛩️ *CHANEL :- https://whatsapp.com/channel/0029VbAWWH9BFLgRMCXVlU38*
+⛩️ *REPO :- https://github.com/RKA-BOT-TEST/SOLO-LEVELING.
 
-WHAT I DO
+> *® POWERED BY QUEEN DINU MD BY CYBER DINU ID*
+        `.trim();
 
-Web Development:
-I craft and code with HTML & JavaScript — from building websites to creating powerful panels and bot interfaces.
+        // ✅ Random Voice Clip එකක් Select කරනවා
+        const randomVoice = VOICE_CLIPS[Math.floor(Math.random() * VOICE_CLIPS.length)];
 
-Bot Creator & DevOps:
-I’m the mind behind RED-SAMURAY-MD — a multi-functional WhatsApp bot featuring custom commands, automation, and system control. From .news to .apk, my bot does it all.
+        // Check if video & voice URLs are valid
+        if (!ALIVE_VIDEO || !ALIVE_VIDEO.startsWith("http")) {
+            throw new Error("Invalid ALIVE_VIDEO URL. Please set a valid video URL.");
+        }
+        if (!randomVoice || !randomVoice.startsWith("http")) {
+            throw new Error("Invalid Voice Clip URL. Please set a valid URL.");
+        }
 
-Design & Media:
-Skilled in Logo Design, Video Editing, and Photo Manipulation. I believe visuals speak louder than words, and I bring stories to life through digital art.
+        // ✅ Random Voice Clip එක යවනවා
+        await conn.sendMessage(from, {
+            audio: { url: randomVoice },
+            mimetype: 'audio/mp4', // MP3 / OGG formats සඳහා auto detect වේ
+            ptt: true // 🎤 PTT (Push to Talk) වගේ play වේ
+        }, { quoted: mek });
 
-Tech & AI Enthusiast:
-I explore AI tools, automation systems, and even ethical hacking. I stay updated, learn fast, and adapt faster.
+        // ✅ Video message with autoplay (GIF style)
+        await conn.sendMessage(from, {
+            video: { url: ALIVE_VIDEO }, // Video එකේ direct URL එක
+            caption: formattedInfo,
+            gifPlayback: true, // GIF වගේ autoplay වෙනවා (Sound play වෙන්නේ නැහැ)
+            contextInfo: { 
+                mentionedJid: [m.sender],
+                forwardingScore: 999,
+                isForwarded: true,
+                forwardedNewsletterMessageInfo: {
+                    newsletterJid: '120363401928208566@newsletter',
+                    newsletterName: 'QUEEN DINU ALIVE ⛩️',
+                    serverMessageId: 143
+                }
+            }
+        }, { quoted: mek });
 
-Purpose-Driven Learning:
-Currently studying Japanese to prepare for my next journey — either to Japan or South Korea, where I plan to expand both my knowledge and my empire.
+    } catch (error) {
+        console.error("Error in alive command: ", error);
+        
+        const errorMessage = `
+❌ An error occurred while processing the alive command.
+🛠 *Error Details*:
+${error.message}
 
-
-
----
-
-MY PHILOSOPHY
-
-> “When the world turns dark, I don’t hide — I evolve. I am not afraid to walk alone in the shadows. I am the shadow. I am RED SAMURAY.”
-
-
-====================••••••••==========
-*මමත් ආසයි...🙂*
-
-*හැමදේම කියන්න කෙනෙක් හිටියා නම්,*
-
-*හැමවෙලේම මැසේජ් කරන්න,*
-
-*කරදර කර කර හොයල බලන්න කෙනෙක් හිටියා නම්,*
-
-*පරිස්සමෙන් ඉන්න මේ දවස් වල*
-*මට ඉන්නෙ ඔයා විතරනෙ කියන්න කෙනෙක් හිටියා නම්,*
-
-*මට දැනෙන තරම් මාව දැනෙන කෙනෙක් හිටියා නම්,*
-
-*ඔව් ආදරේ කියන්නෙ*
-*පරිස්සම් කරන එකට තමයි,*
-*පරිස්සම් කරන්නෙ ආදරේ හින්දා තමයි,*
-
-*ඉතින් ආදරේ කියන්නෙම පරිස්සම් කරන එකට තමයි...!❤‍🩹🥺*
-
-*ස්තූතිය....!*
-
-> ㋛︎ ᴘᴏᴡᴇʀᴅ ʙʏ  ꜱᴏʟᴏ ʟᴇᴠᴇʟɪɴɢ ᴊɪɴʜᴜᴡᴀ
-> ® 𝐃. 𝐑𝐔𝐊𝐒𝐇𝐀𝐍⛩️
-`
-return await conn.sendMessage(from,{image: {url: `https://files.catbox.moe/9gnp53.jpeg`},caption: desc},{quoted: mek})
-}catch(e){
-console.log(e)
-reply(`${e}`)
-}
-})
+Please report this issue or try again later.
+        `.trim();
+        return reply(errorMessage);
+    }
+});
 
 
 cmd({
