@@ -1,5 +1,4 @@
 const config = require('../settings')
-const { getBuffer, fetchJson } = require('../lib/functions')
 const moment = require("moment")
 const os = require('os')
 const fs = require('fs')
