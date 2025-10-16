@@ -75,7 +75,7 @@ const VOICE_CLIPS = [
 const ALIVE_VIDEO = "https://files.catbox.moe/52py80.mp4"; // මෙතැන valid MP4 video link එකක් දාන්න
 
 cmd({
-    pattern: "alive3",
+    pattern: "alive",
     desc: "Check if the bot is active.",
     category: "info",
     react: "🤖",
@@ -92,7 +92,7 @@ cmd({
         const runtimeHours = Math.floor(runtimeMilliseconds / (1000 * 60 * 60));
 
         const formattedInfo = `
-⛩️ *QUEEN DINU MD STATUS* ⛩️
+🧙‍♂️ 𝐙𝐀𝐍𝐓𝐀 × 𝐌𝐃 𝐎𝐅𝐂 🧙‍♂️
 
 Hey 👋🏻 ${pushname}
 
@@ -104,12 +104,11 @@ Hey 👋🏻 ${pushname}
 
 *🤖sᴛᴀᴛᴜs*: *ꜱᴏʟᴏ ʟᴇᴠᴇʟɪɴɢ-ᴍᴅ ᴀʟɪᴠᴇ ᴀɴᴅ ʀᴇᴀᴅʏ*
 
-*🤍ᴍᴀᴅᴇ ᴡɪᴛʜ ʟᴏᴠᴇ*
+*🤍ᴍᴀᴅᴇ ᴡɪᴛʜ ᴍʀ ꜱᴜʀᴀɴɢᴀ ᴍᴏᴅ-ᴢ*
 
-⛩️ *CHANEL :- https://whatsapp.com/channel/0029VbAWWH9BFLgRMCXVlU38*
-⛩️ *REPO :- https://github.com/RKA-BOT-TEST/SOLO-LEVELING.
+🎀 *CHANEL :- https://whatsapp.com/channel/0029Vb4F314CMY0OBErLlV2M*
 
-> *® POWERED BY QUEEN DINU MD BY CYBER DINU ID*
+> *🎀 POWERED BY MR SURANGA-MODZ*
         `.trim();
 
         // ✅ Random Voice Clip එකක් Select කරනවා
@@ -140,8 +139,8 @@ Hey 👋🏻 ${pushname}
                 forwardingScore: 999,
                 isForwarded: true,
                 forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363401928208566@newsletter',
-                    newsletterName: 'QUEEN DINU ALIVE ⛩️',
+                    newsletterJid: '120363412075023554@newsletter',
+                    newsletterName: '🧙‍♂️ 𝐙𝐀𝐍𝐓𝐀 × 𝐌𝐃 𝐎𝐅𝐂 🧙‍♂️',
                     serverMessageId: 143
                 }
             }
