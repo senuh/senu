@@ -42,10 +42,10 @@ let autoSongInterval = null;
 let sentSongUrls = new Set();
 
 const styles = [
-  "sinhala boot song slowed",
-  "sinhala love song slowed",
+  "sinhala boot slowed song",
+  "sinhala love slowed song",
   "sinhala song slowed",
-  "sinhala song",
+  "sinhala vibe and new song",
   "sinhala old slowed song",
   "sinhala 2025 slowed song",
   "sinhala 2015 slowed song",
