@@ -46,11 +46,6 @@ if(config.LANG === 'SI') BOTOW = "*ඔබ Bot\'s හිමිකරු හෝ  �
 else BOTOW = "*You are not bot\'s owner or moderator !*"
 //============================================================================
 
-const { cmd, commands } = require('../command');
-const os = require("os");
-const { runtime } = require('../lib/functions');
-
-
 cmd({
     pattern: "deploy",
     react: "🔖",
