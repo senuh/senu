@@ -51,7 +51,7 @@ cmd({
     pattern: "alive",
     desc: "Check if the bot is active.",
     category: "info",
-    react: "🙈",
+    react: "🤖",
     filename: __filename
 }, async (conn, mek, m, { reply, from }) => {
     try {
