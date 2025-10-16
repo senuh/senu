@@ -322,14 +322,14 @@ cmd({
   reply
 }) => {
   if (!args[0]) {
-    return reply("🌸 What do you want to search on video?\n\n*Usage Example:*\n.status <සිංහල ස්ටේටස්>");
+    return reply("🌸 What do you want to search on TikTok?\n\n*Usage Example:*\n.tiktoksearch <query>");
   }
 
   const query = args.join(" ");
   await store.react('⌛');
 
   try {
-    reply(`🧙‍♂️ 𝐙𝐀𝐍𝐓𝐀 × 𝐌𝐃 𝐎𝐅𝐂 🧙‍♂️`);
+    reply(`🔎 Searching TikTok for: *${query}*`);
     
     const response = await fetch(`https://apis-starlights-team.koyeb.app/starlight/tiktoksearch?text=${encodeURIComponent(query)}`);
     const data = await response.json();
@@ -343,9 +343,8 @@ cmd({
     const results = data.data.slice(0, 7).sort(() => Math.random() - 0.5);
 
     for (const video of results) {
-      const message = `❤️‍🩹 *𝚉𝙰𝙽𝚃𝙰-𝚇𝙼𝙳 𝚂𝚃𝙰𝚃𝚄𝚂 𝙳𝙾𝚆𝙽𝙻𝙾𝙰𝙳𝙴𝙳*:\n\n`
-        `${video.title}\n
-`
+      const message = `🌸 *TikTok Video Result*:\n\n`
+        + `*• Title*: ${video.title}\n`
         + `*• Author*: ${video.author || 'Unknown'}\n`
         + `*• Duration*: ${video.duration || "Unknown"}\n`
         + `*• URL*: ${video.link}\n\n`;
