@@ -310,72 +310,59 @@ else urlneed4 = "It downloads apps from playstore."
 //============================================================================
 
 cmd({
-    pattern: "tiktok2",
-    alias: ["tt2", "tiktokdl2", "ttdown2", "tiktokvid2", "ttdl"],
-    desc: "Download TikTok videos using a link.",
-    category: "downloader",
-    filename: __filename
-},
-async (conn, mek, m, { from, args, quoted, reply }) => {
-    try {
-        // Validate input
-        if (!args[0]) {
-            return reply(`✳️ Use this command like:\n *${command} <TikTok link>*`);
-        }
+  pattern: "tiktoksearch",
+  alias: ["tiktoks", "tiks"],
+  desc: "Search for TikTok videos using a query.",
+  react: '✅',
+  category: 'tools',
+  filename: __filename
+}, async (conn, m, store, {
+  from,
+  args,
+  reply
+}) => {
+  if (!args[0]) {
+    return reply("🌸 What do you want to search on TikTok?\n\n*Usage Example:*\n.tiktoksearch <query>");
+  }
 
-        reply("⏳ Fetching video details... Please wait.");
+  const query = args.join(" ");
+  await store.react('⌛');
 
-        const res = await fetch(`https://darkcore-api.onrender.com/api/tiktok?url=${encodeURIComponent(args[0])}`);
-        if (!res.ok) {
-            return reply("❎ Unable to fetch data. Please try again later.");
-        }
+  try {
+    reply(`🔎 Searching TikTok for: *${query}*`);
+    
+    const response = await fetch(`https://apis-starlights-team.koyeb.app/starlight/tiktoksearch?text=${encodeURIComponent(query)}`);
+    const data = await response.json();
 
-        const data = await res.json();
-        if (!data.success) {
-            return reply("❎ Failed to fetch video. Please check the link and try again.");
-        }
-
-        const { author, titulo, thumbanail, mp4, mp3 } = data.result;
-
-        // Send the initial options with a thumbnail
-        const caption = `📖 *Title:* ${titulo}\n👤 *Author:* ${author}\n\n📥 *Reply with:*\n1️⃣ for *Video*\n2️⃣ for *Audio*`;
-        const menuMsg = await conn.sendMessage(from, {
-            image: { url: thumbanail },
-            caption
-        }, { quoted: mek });
-
-        // Wait for the user to reply with the option
-        conn.ev.on('messages.upsert', async (msgUpdate) => {
-            const msg = msgUpdate.messages[0];
-            if (!msg.message || !msg.message.extendedTextMessage) return;
-
-            const userReply = msg.message.extendedTextMessage.text.trim();
-
-            // Ensure the user reply references the correct message
-            if (msg.message.extendedTextMessage.contextInfo && msg.message.extendedTextMessage.contextInfo.stanzaId === menuMsg.key.id) {
-                if (userReply === '1') {
-                    // Send video
-                    await conn.sendMessage(from, {
-                        video: { url: mp4 },
-                        caption: "🎥 *Here is your TikTok video!*"
-                    }, { quoted: mek });
-                } else if (userReply === '2') {
-                    // Send audio
-                    await conn.sendMessage(from, {
-                        audio: { url: mp3 },
-                        mimetype: 'audio/mpeg',
-                        caption: "🎵 *Here is the extracted audio!*"
-                    }, { quoted: mek });
-                } else {
-                    reply("❎ Invalid option. Please reply with `1` for video or `2` for audio.");
-                }
-            }
-        });
-
-    } catch (error) {
-        console.error(error);
-        reply("❎ An error occurred while processing your request. Please try again later.");
+    if (!data || !data.data || data.data.length === 0) {
+      await store.react('❌');
+      return reply("❌ No results found for your query. Please try with a different keyword.");
     }
+
+    // Get up to 7 random results
+    const results = data.data.slice(0, 7).sort(() => Math.random() - 0.5);
+
+    for (const video of results) {
+      const message = `🌸 *TikTok Video Result*:\n\n`
+        + `*• Title*: ${video.title}\n`
+        + `*• Author*: ${video.author || 'Unknown'}\n`
+        + `*• Duration*: ${video.duration || "Unknown"}\n`
+        + `*• URL*: ${video.link}\n\n`;
+
+      if (video.nowm) {
+        await conn.sendMessage(from, {
+          video: { url: video.nowm },
+          caption: message
+        }, { quoted: m });
+      } else {
+        reply(`❌ Failed to retrieve video for *"${video.title}"*.`);
+      }
+    }
+
+    await store.react('✅');
+  } catch (error) {
+    console.error("Error in TikTokSearch command:", error);
+    await store.react('❌');
+    reply("❌ An error occurred while searching TikTok. Please try again later.");
+  }
 });
-
-
