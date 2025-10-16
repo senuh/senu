@@ -47,107 +47,11 @@ if(config.LANG === 'SI') BOTOW = "*ඔබ Bot\'s හිමිකරු හෝ  �
 else BOTOW = "*You are not bot\'s owner or moderator !*"
 //============================================================================
 
-pattern: "botabout",
-    alias: ["botingsk","dlflflfcxlslx"], 
-    react: "☺️",
-    desc: "get owner dec",
-    category: "main",
-    filename: __filename
-},
-async(conn, mek, m,{from, quoted, body, isCmd, command, args, q, isGroup, sender, senderNumber, botNumber2, botNumber, pushname, isMe, isOwner, groupMetadata, groupName, participants, groupAdmins, isBotAdmins, isAdmins, reply}) => {
-try{
-let about = `╭━---------------------------------------------
-┃◈╭─────────────·๏
-┃◈┃• *⛩️ 𝐎𝐰𝐧𝐞𝐫: ® 𝐂𝐘𝐁𝐄𝐑 𝐃𝐈𝐍𝐔 𝐈𝐃 ☺️*
-┃◈└───────────┈⊷
-╰──────────────┈
-┏━❮ ⛩️ 𝐐𝐔𝐄𝐄𝐍 𝐃𝐈𝐍𝐔 𝐌𝐃 ⛩️ ❯━
-┃◈┃🤖 ʙᴏᴛ ɴᴀᴍᴇ :QUEEN DINU MD
-┃◈┃🔖 ᴠᴇʀsɪᴏɴ : 2.0
-┃◈┃📟 ᴘʟᴀᴛғᴏʀᴍ : Linux
-┃◈┃👨‍💻ᴏᴡɴᴇʀ: 𝐂𝐘𝐁𝐄𝐑 𝐃𝐈𝐍𝐔 𝐈𝐃 ⛩️
-┃◈┗━━━━━━━━━━━━━━𖣔𖣔
-╰──────────────┈⊷
-⛩️ *MY OWNER ABOUT :-* *About Me Hi, I'm Dinu — a passionate individual with a dream to rise above limits and make my name a globally recognized brand. I have a basic knowledge of HTML and a deep interest in technology and design. I’m currently focused on learning Japanese and Korean, as I believe language is a key that opens doors to new opportunities.*
-
-*My ultimate goal is not just to find success, but to create it — by building a powerful brand that will be known and respected worldwide. Every step I take is a move towards that vision — driven by hard work, dedication, and a desire to give my mother the life she deserves.*
-
-*This is just the beginning of my journey. One day, the world will know the name Rukshan.*
-
-⛩️ *_This WhatsApp bot is based on the Japanese anime series 𝐐𝐔𝐄𝐄𝐍 𝐃𝐈𝐍𝐔 𝐌𝐃, and I, or rather someone named 𝐂𝐘𝐁𝐄𝐑 𝐃𝐈𝐍𝐔 𝐈𝐃, created it this way.*_
-
-*🐉 If you need any help from me, you can type the "alive" command and get the "menu" thanks*
-*────────────────────────┈⊷*
-⊷
-*•────────────•⟢*
-> © ᴘᴏᴡᴇʀᴇᴅ ʙʏ Qᴜᴇᴇɴ ᴅɪɴᴜ ʙʏ ᴄʏʙᴇʀ ᴅɪɴᴜ ɪᴅ ⛩️
-*•────────────•⟢*`, // Display the owner's details
-            contextInfo: {
-                mentionedJid: [`${ownerNumber.replace('+', '')}@s.whatsapp.net`], 
-                forwardingScore: 999,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363401755639074@newsletter',
-                    newsletterName: '⛩️ ꜱᴏʟᴏ ʟᴇᴠᴇʟɪɴɢ ᴏᴡɴᴇʀ ⛩️',
-                    serverMessageId: 143
-                }            
-            }
-        }, { quoted: mek });
-
-    // Send the audio file with context info
-        await conn.sendMessage(from, {
-            audio: { url: 'https://files.catbox.moe/ggebie.mp3' },
-            mimetype: 'audio/mp4',
-            ptt: true,
-            contextInfo: { 
-                mentionedJid: [m.sender],
-                forwardingScore: 999,
-                isForwarded: true,
-                forwardedNewsletterMessageInfo: {
-                    newsletterJid: '120363401755639074@newsletter',
-                    newsletterName: 'SOLO LEVELING MENU',
-                    serverMessageId: 143
-                }
-            }
-        }, { quoted: mek });
-
-    } catch (error) {
-        console.error(error);
-        reply(`An error occurred: ${error.message}`);
-    }
-});
-
-let botStartTime = Date.now(); // Bot start time record
-
-// ✅ Random Voice Clips List එක
-const VOICE_CLIPS = [
-    "https://files.catbox.moe/r4r0hz.mp3",
-    "https://files.catbox.moe/3pzzgr.mp3",
-    "https://files.catbox.moe/qvpa5o.mp3",
-    "https://files.catbox.moe/y29b3n.mp3",
-    "https://files.catbox.moe/w7yg8f.mp3",
-    "https://files.catbox.moe/4rm2fz.mp3",
-    "https://files.catbox.moe/gr8wlt.mp3",
-    "https://files.catbox.moe/xvue61.mp3",
-    "https://files.catbox.moe/uosvov.mp3",
-    "https://files.catbox.moe/2vgkwr.mp3",
-    "https://files.catbox.moe/gqw8fl.m4a",
-    "https://files.catbox.moe/mc5r2s.mp3",
-    "https://files.catbox.moe/ck4reh.mp3",
-    "https://files.catbox.moe/ypbfyt.mp3",
-    "https://files.catbox.moe/75p1zt.mp3",
-    "https://files.catbox.moe/rd21pi.mp3",
-    "https://files.catbox.moe/ggebie.mp3",
-    "https://files.catbox.moe/r4r0hz.mp3"
-];
-
-const ALIVE_VIDEO = "https://files.catbox.moe/52py80.mp4"; // මෙතැන valid MP4 video link එකක් දාන්න
-
 cmd({
     pattern: "alive",
     desc: "Check if the bot is active.",
     category: "info",
-    react: "🤖",
+    react: "🙈",
     filename: __filename
 }, async (conn, mek, m, { reply, from }) => {
     try {
