@@ -51,7 +51,7 @@ const os = require("os");
 const { runtime } = require('../lib/functions');
 
 cmd({
-    pattern: "alive",
+    pattern: "alive3",
     alias: ["alive", "online"],
     desc: "Bot online test",
     react: "⚡",
