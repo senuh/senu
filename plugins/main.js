@@ -47,7 +47,8 @@ if(config.LANG === 'SI') BOTOW = "*ඔබ Bot\'s හිමිකරු හෝ  �
 else BOTOW = "*You are not bot\'s owner or moderator !*"
 //============================================================================
 
-et botStartTime = Date.now(); // Bot start time record
+
+let botStartTime = Date.now(); // Bot start time record
 
 // ✅ Random Voice Clips List එක
 const VOICE_CLIPS = [
@@ -72,7 +73,6 @@ const VOICE_CLIPS = [
 ];
 
 const ALIVE_VIDEO = "https://files.catbox.moe/52py80.mp4"; // මෙතැන valid MP4 video link එකක් දාන්න
-
 
 cmd({
     pattern: "alive",
