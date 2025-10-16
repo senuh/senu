@@ -65,14 +65,6 @@ async (conn, mek, m, { from }) => {
                       `TEL;type=CELL;type=VOICE;waid=${ownerNumber.replace('+', '')}:${ownerNumber}\n` + 
                       'END:VCARD';
 
-        // Send the vCard
-        const sentVCard = await conn.sendMessage(from, {
-            contacts: {
-                displayName: ownerName,
-                contacts: [{ vcard }]
-            }
-        });
-
         // Send the owner contact message with image and audio
         await conn.sendMessage(from, {
             image: { url: 'https://files.catbox.moe/9gnp53.jpeg' }, // Image URL from your request
