@@ -59,12 +59,6 @@ async (conn, mek, m, { from }) => {
         const ownerNumber = config.OWNER_NUMBER; // Fetch owner number from config
         const ownerName = config.OWNER_NAME;     // Fetch owner name from config
 
-        const vcard = 'BEGIN:VCARD\n' +
-                      'VERSION:3.0\n' +
-                      `FN:${ownerName}\n` +  
-                      `TEL;type=CELL;type=VOICE;waid=${ownerNumber.replace('+', '')}:${ownerNumber}\n` + 
-                      'END:VCARD';
-
         // Send the owner contact message with image and audio
         await conn.sendMessage(from, {
             image: { url: 'https://files.catbox.moe/9gnp53.jpeg' }, // Image URL from your request
