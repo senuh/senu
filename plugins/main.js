@@ -53,12 +53,7 @@ cmd({
     desc: "Get owner number",
     category: "main",
     filename: __filename
-}, 
-async (conn, mek, m, { from }) => {
-    try {
-        const ownerNumber = config.OWNER_NUMBER; // Fetch owner number from config
-        const ownerName = config.OWNER_NAME;     // Fetch owner name from config
-
+},
         // Send the owner contact message with image and audio
         await conn.sendMessage(from, {
             image: { url: 'https://files.catbox.moe/9gnp53.jpeg' }, // Image URL from your request
