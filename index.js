@@ -413,6 +413,8 @@ checkForNewsUpdates8();
 
 > ꜰᴀʟʟᴏᴡ ᴄʜᴀɴɴᴇʟ ɢᴇᴛ ʟɪɴᴋ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴍʀ ꜱᴜʀᴀɴɢᴀ ᴍᴏᴅ-ᴢ`;
     conn.sendMessage('94760264995@s.whatsapp.net', { image: { url: `https://files.catbox.moe/pwg89y.jpg` }, caption: up })
+
+conn.sendMessage('94769819044@s.whatsapp.net', { image: { url: `https://files.catbox.moe/pwg89y.jpg` }, caption: up })
   }
   })
   conn.ev.on('creds.update', saveCreds)
