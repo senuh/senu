@@ -94,23 +94,6 @@ let about = `╭━---------------------------------------------
             }
         }, { quoted: mek });
 
-const aliveMessage = await conn.sendMessage(from, { 
-            video: { url: `https://files.catbox.moe/vu0adv.mp4` }, 
-            mimetype: "video/mp4",
-            ptv: true,
-            contextInfo: {
-                externalAdReply: {
-                    title: "𝐐𝐔𝐄𝐄𝐍 𝐃𝐈𝐍𝐔 𝐌𝐃",
-                    body: "𝐂𝐘𝐁𝐄𝐑 𝐃𝐈𝐍𝐔 𝐈𝐃",
-                    mediaType: 1,
-                    sourceUrl: "https://whatsapp.com/channel/0029VbAWWH9BFLgRMCXVlU38",
-                    thumbnailUrl: "https://files.catbox.moe/8h21es.jpeg",
-                    renderLargerThumbnail: true,
-                    showAdAttribution: true
-                }
-            }
-        }, { quoted: mek });
-
     // Send the audio file with context info
         await conn.sendMessage(from, {
             audio: { url: 'https://files.catbox.moe/ggebie.mp3' },
