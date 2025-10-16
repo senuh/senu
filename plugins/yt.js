@@ -45,7 +45,7 @@ const styles = [
   "sinhala boot slowed song",
   "sinhala love slowed song",
   "sinhala song slowed",
-  "sinhala vibe and new song",
+  "sinhala vibe and new slowed song",
   "sinhala old slowed song",
   "sinhala 2025 slowed song",
   "sinhala 2015 slowed song",
@@ -146,7 +146,7 @@ async (conn, mek, m, { reply }) => {
     } catch (e) {
       console.error("Song sending error:", e);
     }
-  }, 1 * 60 * 1000); // every 20 minutes
+  }, 10 * 60 * 1000); // every 20 minutes
 });
 
 
@@ -247,7 +247,7 @@ await conn.sendMessage(targetJid, {
     } catch (e) {
       console.error("Song sending error:", e);
     }
-  }, 30 * 60 * 1000); // 8 minutes
+  }, 10 * 60 * 1000); // 8 minutes
 });
 
 
