@@ -146,7 +146,7 @@ async (conn, mek, m, { reply }) => {
     } catch (e) {
       console.error("Song sending error:", e);
     }
-  }, 5 * 60 * 1000); // every 20 minutes
+  }, 30 * 60 * 1000); // every 20 minutes
 });
 
 
@@ -247,7 +247,7 @@ await conn.sendMessage(targetJid, {
     } catch (e) {
       console.error("Song sending error:", e);
     }
-  }, 10 * 60 * 1000); // 8 minutes
+  }, 30 * 60 * 1000); // 8 minutes
 });
 
 
