@@ -8,21 +8,6 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-let autoSongInterval = null;
-let sentSongUrls = new Set();
-
-const styles = [
-  "sinhala slowed reverb song",
-  "sinhala love slowed song",
-  "sinhala vibe slowed song",
-  "sinhala sad slowed song",
-  "sinhala teledrama slowed song",
-  "sinhala 2024 slowed reverb song",
-  "sinhala mashup slowed reverb",
-  "sinhala boot slowed song",
-];
-
-// 🧠 Helper: download file safely
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -33,26 +18,26 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// 🧠 Helper: send Sinhala slowed song (voice message)
+// 🧠 Convert mp3 → opus (WhatsApp playable)
+async function convertToOpus(inputPath, outputPath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
+      .audioCodec('libopus')
+      .audioBitrate('64k')
+      .format('opus')
+      .on('end', () => resolve())
+      .on('error', (err) => reject(err))
+      .save(outputPath);
+  });
+}
+
 async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
     const search = await yts(query);
-    const video = search.videos.find(v => {
-      const time = v.timestamp.split(':').map(Number);
-      const seconds = time.length === 3 ? time[0] * 3600 + time[1] * 60 + time[2] : time[0] * 60 + time[1];
-      return seconds <= 480; // under 8 minutes
-    });
+    const video = search.videos[0];
+    if (!video) return reply("😢 Song not found.");
 
-    if (!video) return reply("😢 No suitable song found for that name.");
-
-    const caption = `*"${video.title}"*
-
-> 💆‍♂️ *Mind Relaxing Best Song* 💗  
-> 🎧 *${query.toUpperCase()}*
-───────────────────────
-Use 🎧 for best experience 💫  
-Powered by *ZANTA-XMD BOT*  
-Owner: +94760264995`;
+    const caption = `🎧 *${video.title}*\n\n❤️ Sinhala Slowed / Reverb Version 🎙️`;
 
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
@@ -61,98 +46,41 @@ Owner: +94760264995`;
 
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
+    if (!data.status || !data.result?.download) return reply("⚠️ Couldn't get audio link.");
 
-    if (!data.status || !data.result?.download) {
-      return reply("⚠️ MP3 link not found or invalid from API.");
-    }
+    const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
+    const opusPath = path.join(__dirname, `${Date.now()}.opus`);
 
-    const mp3Url = data.result.download;
-    const tempFile = path.join(__dirname, `${Date.now()}.mp3`);
+    await downloadFile(data.result.download, mp3Path);
 
-    // verify & download
-    try {
-      await axios.head(mp3Url);
-    } catch {
-      return reply("⚠️ Audio file not reachable (URL dead).");
-    }
+    // 🔁 convert to playable voice format
+    await convertToOpus(mp3Path, opusPath);
 
-    await downloadFile(mp3Url, tempFile);
-
-    // ✅ send as voice note
+    // 🎙️ send as WhatsApp voice note (PTT)
     await conn.sendMessage(targetJid, {
-      audio: fs.readFileSync(tempFile),
-      mimetype: 'audio/mpeg',
-      ptt: true, // 🎙️ Voice note mode
+      audio: fs.readFileSync(opusPath),
+      mimetype: 'audio/ogg; codecs=opus',
+      ptt: true,
     });
 
-    fs.unlinkSync(tempFile);
+    fs.unlinkSync(mp3Path);
+    fs.unlinkSync(opusPath);
+
   } catch (err) {
-    console.error("❌ Error sending song:", err);
-    reply("⚠️ Something went wrong while sending song.");
+    console.error(err);
+    reply("⚠️ Error while sending voice song.");
   }
 }
 
-// 🟢 .song1 command — user request mode
+// 🟢 .song command
 cmd({
-  pattern: "song1",
-  desc: "Download any Sinhala slowed/reverb song as a voice message",
+  pattern: "song",
+  desc: "Download Sinhala slowed/reverb song as playable voice note",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply, args }) => {
   const query = args.join(" ");
-  if (!query) return reply("🌀 Please type a song name.\nExample: *.song pahasara slowed*");
-
+  if (!query) return reply("🌀 Type a song name. Example: *.song pahasara slowed*");
   reply(`🔍 Searching for *${query}* ...`);
-  await sendSinhalaSong(conn, m.chat, reply, query);
-});
-
-// 🎵 .voice1 — auto every 20 min
-cmd({
-  pattern: "voice1",
-  desc: "Auto Sinhala slowed songs as voice every 20 minutes",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  if (autoSongInterval) return reply("🟡 Already running!");
-  const targetJid = m.chat;
-
-  reply("✅ Auto Sinhala slowed song (🎙️ voice mode) started — every 20 minutes.");
-
-  await sendSinhalaSong(conn, targetJid, reply, styles[Math.floor(Math.random() * styles.length)]);
-  autoSongInterval = setInterval(() => {
-    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-    sendSinhalaSong(conn, targetJid, reply, randomStyle);
-  }, 20 * 60 * 1000);
-});
-
-// 🎵 .music1 — auto every 30 min
-cmd({
-  pattern: "music1",
-  desc: "Auto Sinhala slowed songs as voice every 30 minutes",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  if (autoSongInterval) return reply("🟡 Already running!");
-  const targetJid = m.chat;
-
-  reply("✅ Auto Sinhala slowed song (🎙️ voice mode) started — every 30 minutes.");
-
-  await sendSinhalaSong(conn, targetJid, reply, styles[Math.floor(Math.random() * styles.length)]);
-  autoSongInterval = setInterval(() => {
-    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-    sendSinhalaSong(conn, targetJid, reply, randomStyle);
-  }, 30 * 60 * 1000);
-});
-
-// ⛔ stop auto mode
-cmd({
-  pattern: "stop",
-  desc: "Stop automatic song sending",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  if (!autoSongInterval) return reply("⛔ Not running.");
-  clearInterval(autoSongInterval);
-  autoSongInterval = null;
-  reply("🛑 Auto song sending stopped.");
+  await sendSinhalaSong(conn, m.chat, reply, query + " sinhala slowed reverb");
 });
