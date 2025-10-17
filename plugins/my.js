@@ -57,7 +57,6 @@ async function sendSinhalaSong(conn, jid, reply, query) {
     const caption = `*"${video.title}"*
 
 > *💆‍♂️ Mind Relaxing Best Song 💆❤‍🩹*
-> *🎧 ${style.toUpperCase()}*
 ▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
 ❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
          00:00 ───●──────────    
