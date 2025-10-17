@@ -7,10 +7,8 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-let autoSongIntervalVoice = null;
-let autoSongIntervalMusic = null;
+let autoSongInterval = null;
 const sentUrls = new Set();
-
 const styles = [
   "sinhala slowed reverb song",
   "sinhala love slowed song",
@@ -21,7 +19,6 @@ const styles = [
   "sinhala mashup slowed song",
 ];
 
-// ---------------- File Utils ----------------
 async function downloadFile(url, outPath) {
   const writer = fs.createWriteStream(outPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -44,114 +41,78 @@ async function convertToOpus(inPath, outPath) {
   });
 }
 
-// ---------------- Sinhala Song Sender ----------------
 async function sendSinhalaSong(conn, jid, reply, query) {
   try {
     const search = await yts(query);
     const video = search.videos.find(v => {
-      if (!v.timestamp || !v.title || sentUrls.has(v.url)) return false;
-      if (!v.title.toLowerCase().includes('sinhala')) return false;
+      if (sentUrls.has(v.url)) return false;
       const t = v.timestamp.split(':').map(Number);
-      if (!t.every(num => !isNaN(num))) return false;
-      const sec = t.length === 3 ? t[0]*3600 + t[1]*60 + t[2] : t[0]*60 + t[1];
-      return sec <= 480; // under 8 min
+      const sec = t.length === 3 ? t[0] * 3600 + t[1] * 60 + t[2] : t[0] * 60 + t[1];
+      return sec <= 480; // under 8min
     });
-
-    if (!video) return reply('😢 Sinhala slowed song not found.');
+    if (!video) return reply('😢 No suitable Sinhala slowed song found.');
 
     sentUrls.add(video.url);
 
-    const caption = `*"${video.title}"*
+    const caption = `🎧 *${video.title}*\n\n💆 Sinhala Slowed / Reverb Song 💫\n───────────────────────\nUse 🎧 for full vibe 💫\nPowered by *ZANTA-XMD BOT*`;
 
-> *💆‍♂️ ᴍɪɴᴅ ʀᴇʟᴀxɪɴɢ ʙᴇꜱᴛ ꜱᴏɴɢ 💆❤‍🩹*
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-         00:00 ───●──────────${video.timestamp}    
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-> ❑ ᴜꜱᴇ ʜᴇᴀᴅᴘʜᴏɴᴇꜱ ꜰᴏʀ ʙᴇꜱᴛ ᴇxᴘᴇʀɪᴇɴᴄᴇ..🙇‍♂️🎧"🫀`;
-
-    // Send thumbnail + caption
     await conn.sendMessage(jid, { image: { url: video.thumbnail }, caption });
 
-    // Download mp3 safely
-    let mp3Link;
-    try {
-      const api = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
-      const { data } = await axios.get(api);
-      if (!data.status || !data.result?.download) return reply('⚠️ Mp3 link not found.');
-      mp3Link = data.result.download;
-    } catch {
-      return reply('⚠️ Mp3 download API failed.');
-    }
+    // 🔹 Get mp3 link
+    const api = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
+    const { data } = await axios.get(api);
+    if (!data.status || !data.result?.download) return reply('⚠️ Mp3 link not found.');
 
-    // Temp files
     const mp3 = path.join(__dirname, `${Date.now()}.mp3`);
     const opus = path.join(__dirname, `${Date.now()}.opus`);
+    await downloadFile(data.result.download, mp3);
+    await convertToOpus(mp3, opus);
 
-    // Download + convert
-    try {
-      await downloadFile(mp3Link, mp3);
-      await convertToOpus(mp3, opus);
-    } catch {
-      return reply('⚠️ Error downloading or converting song.');
-    }
+    // 🎙️ Send as voice
+    await conn.sendMessage(jid, {
+      audio: fs.readFileSync(opus),
+      mimetype: 'audio/ogg; codecs=opus',
+      ptt: true,
+    });
 
-    // Send voice
-    try {
+    // 🎬 Send video version
+    const videoApi = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp4&apikey=sadiya`;
+    const { data: vid } = await axios.get(videoApi);
+    if (vid.status && vid.result?.download) {
       await conn.sendMessage(jid, {
-        audio: fs.readFileSync(opus),
-        mimetype: 'audio/ogg; codecs=opus',
-        ptt: true,
+        video: { url: vid.result.download },
+        caption: `🎬 *${video.title}* | Sinhala Slowed Video 💫`,
       });
-    } catch {
-      return reply('⚠️ Error sending voice message.');
     }
 
-    // Send video safely
-    try {
-      const videoApi = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp4&apikey=sadiya`;
-      const { data: vid } = await axios.get(videoApi);
-      if (vid.status && vid.result?.download) {
-        await conn.sendMessage(jid, {
-          video: { url: vid.result.download },
-          caption: `🎬 *${video.title}* | Sinhala Slowed Video 💫`,
-        });
-      }
-    } catch {}
-
-    // Delete temp files
-    try { fs.unlinkSync(mp3); } catch {}
-    try { fs.unlinkSync(opus); } catch {}
-
+    fs.unlinkSync(mp3);
+    fs.unlinkSync(opus);
   } catch (e) {
     console.error('Error sending Sinhala song:', e);
     reply('⚠️ Something went wrong.');
   }
 }
 
-// ---------------- Commands ----------------
-
-// Manual command
+// 🎵 Manual command
 cmd({
   pattern: 'song',
   desc: 'Send Sinhala slowed song (voice + video)',
-  category: 'download',
+  category: 'music',
   filename: __filename,
 }, async (conn, mek, m, { reply, args }) => {
   const q = args.join(' ');
   if (!q) return reply('💬 Type a song name. Example: *.song pahasara*');
-  await sendSinhalaSong(conn, m.chat, reply, q + ' sinhala slowed');
+  await sendSinhalaSong(conn, m.chat, reply, q + ' sinhala slowed reverb');
 });
 
-// Auto voice every 20min
+// 🎧 Auto mode every 20min (voice1)
 cmd({
   pattern: 'voice1',
   desc: 'Auto Sinhala slowed song (voice + video) every 20min',
-  category: 'download',
+  category: 'music',
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  if (autoSongIntervalVoice) return reply('🟡 Already running.');
+  if (autoSongInterval) return reply('🟡 Already running.');
   const jid = m.chat;
   reply('✅ Sinhala auto voice mode started (every 20min) 🎧🎬');
 
@@ -161,17 +122,17 @@ cmd({
   };
 
   await playRandom();
-  autoSongIntervalVoice = setInterval(playRandom, 20 * 60 * 1000);
+  autoSongInterval = setInterval(playRandom, 20 * 60 * 1000);
 });
 
-// Auto music every 30min
+// 🎵 Auto mode every 30min (music1)
 cmd({
   pattern: 'music1',
   desc: 'Auto Sinhala slowed song (voice + video) every 30min',
-  category: 'download',
+  category: 'music',
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  if (autoSongIntervalMusic) return reply('🟡 Already running.');
+  if (autoSongInterval) return reply('🟡 Already running.');
   const jid = m.chat;
   reply('✅ Sinhala auto music mode started (every 30min) 🎧🎬');
 
@@ -181,20 +142,18 @@ cmd({
   };
 
   await playRandom();
-  autoSongIntervalMusic = setInterval(playRandom, 30 * 60 * 1000);
+  autoSongInterval = setInterval(playRandom, 30 * 60 * 1000);
 });
 
-// Stop auto
+// 🛑 Stop
 cmd({
   pattern: 'stop',
   desc: 'Stop Sinhala song auto mode',
-  category: 'download',
+  category: 'music',
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  if (!autoSongIntervalVoice && !autoSongIntervalMusic) return reply('⛔ No auto mode running.');
-  if (autoSongIntervalVoice) clearInterval(autoSongIntervalVoice);
-  if (autoSongIntervalMusic) clearInterval(autoSongIntervalMusic);
-  autoSongIntervalVoice = null;
-  autoSongIntervalMusic = null;
+  if (!autoSongInterval) return reply('⛔ No auto mode running.');
+  clearInterval(autoSongInterval);
+  autoSongInterval = null;
   reply('🛑 Sinhala song auto mode stopped.');
 });
