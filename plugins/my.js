@@ -54,7 +54,21 @@ async function sendSinhalaSong(conn, jid, reply, query) {
 
     sentUrls.add(video.url);
 
-    const caption = `🎧 *${video.title}*\n\n💆 Sinhala Slowed / Reverb Song 💫\n───────────────────────\nUse 🎧 for full vibe 💫\nPowered by *ZANTA-XMD BOT*`;
+    const caption = `*"${video.title}"*
+
+> *💆‍♂️ Mind Relaxing Best Song 💆❤‍🩹*
+> *🎧 ${style.toUpperCase()}*
+▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
+❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
+         00:00 ───●────────── ${video.timestamp}   
+❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
+▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
+> ❑ Use headphones for best experience..🙇‍♂️🎧"🫀
+> ❑ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴀɴᴛᴀ-xᴍᴅ ᴡʜᴀᴛꜱᴀᴘᴘ ʙᴏᴛ
+> ❑ ᴢᴀɴᴛᴀ-xᴍᴅ ᴏᴡɴᴇʀ - +94760264995
+
+                               ♡          ⎙          ➦ 
+                            ʳᵉᵃᶜᵗ       ˢᵃᵛᵉ       ˢʰᵃʳᵉ`;
 
     await conn.sendMessage(jid, { image: { url: video.thumbnail }, caption });
 
