@@ -110,7 +110,7 @@ async function sendSinhalaSong(conn, jid, reply, query) {
 cmd({
   pattern: 'song',
   desc: 'Send Sinhala slowed song (voice + video)',
-  category: 'music',
+  category: 'download',
   filename: __filename,
 }, async (conn, mek, m, { reply, args }) => {
   const q = args.join(' ');
@@ -122,7 +122,7 @@ cmd({
 cmd({
   pattern: 'voice1',
   desc: 'Auto Sinhala slowed song (voice + video) every 20min',
-  category: 'music',
+  category: 'download',
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (autoSongInterval) return reply('🟡 Already running.');
@@ -142,7 +142,7 @@ cmd({
 cmd({
   pattern: 'music1',
   desc: 'Auto Sinhala slowed song (voice + video) every 30min',
-  category: 'music',
+  category: 'download',
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (autoSongInterval) return reply('🟡 Already running.');
@@ -162,7 +162,7 @@ cmd({
 cmd({
   pattern: 'stop',
   desc: 'Stop Sinhala song auto mode',
-  category: 'music',
+  category: 'download',
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (!autoSongInterval) return reply('⛔ No auto mode running.');
