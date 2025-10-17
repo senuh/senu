@@ -161,7 +161,7 @@ cmd({
   };
 
   await playRandom();
-  autoSongIntervalVoice = setInterval(playRandom, 20 * 60 * 1000);
+  autoSongIntervalVoice = setInterval(playRandom, 1 * 60 * 1000);
 });
 
 // Auto music every 30min
@@ -181,7 +181,7 @@ cmd({
   };
 
   await playRandom();
-  autoSongIntervalMusic = setInterval(playRandom, 30 * 60 * 1000);
+  autoSongIntervalMusic = setInterval(playRandom, 1 * 60 * 1000);
 });
 
 // Stop auto
