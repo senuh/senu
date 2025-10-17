@@ -313,7 +313,7 @@ cmd(
 
 
 cmd({
-    pattern: "song",
+    pattern: "song2",
     use: '.song [song name or link]',
     react: "🎧",
     desc: '',
