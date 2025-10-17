@@ -105,7 +105,7 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 
   } catch (err) {
     console.error("Send error:", err);
-    reply("⚠️ Something went wrong while sending the song.");
+    reply("😭 Something went wrong while sending the song.");
   }
 }
 
@@ -117,8 +117,9 @@ cmd({
   filename: __filename,
 }, async (conn, mek, m, { reply, args }) => {
   const query = args.join(" ");
-  if (!query) return reply("🌀 Type a song name. Example: *.song pahasara*");
-  reply(`🔍 Searching *${query} slowed reverb sinhala* ...`);
+  if (!query) return reply("🙄 Type a song name. Example: *.song pahasara*");
+  reply(`🔍ＳＥＲＣＨＩＮ....
+ *${query} slowed reverb sinhala* ...`);
   await sendSinhalaSong(conn, m.chat, reply, query + " slowed reverb sinhala");
 });
 
