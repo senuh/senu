@@ -13,24 +13,17 @@ let autoSongInterval = null;
 let sentSongUrls = new Set();
 
 const styles = [
-  "sinhala boot slowed song",
+  "sinhala slowed reverb song",
   "sinhala love slowed song",
-  "sinhala song slowed",
-  "sinhala vibe and new slowed song",
-  "sinhala old slowed song",
-  "sinhala 2025 slowed song",
-  "sinhala 2015 slowed song",
-  "sinhala nonstop slowed song",
-  "sinhala slowed reverb",
-  "sinhala vibe slowed rap",
+  "sinhala vibe slowed song",
   "sinhala sad slowed song",
-  "sinhala new boot slowed song",
-  "sinhala slowed reverb 2024 song",
-  "sinhala teledrama slowed reverb song",
-  "sinhala mashup slowed reverb song"
+  "sinhala teledrama slowed song",
+  "sinhala 2024 slowed reverb song",
+  "sinhala mashup slowed reverb",
+  "sinhala boot slowed song",
 ];
 
-// 🧠 Helper: Download file safely
+// 🧠 Helper: download file safely
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -41,8 +34,8 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// 🧠 Helper: Send one random Sinhala slowed song
-async function sendRandomSong(conn, targetJid, reply, intervalMinutes) {
+// 🧠 Helper: send a random song
+async function sendRandomSong(conn, targetJid, reply) {
   try {
     const style = styles[Math.floor(Math.random() * styles.length)];
     const search = await yts(style);
@@ -51,110 +44,107 @@ async function sendRandomSong(conn, targetJid, reply, intervalMinutes) {
       if (sentSongUrls.has(v.url)) return false;
       const time = v.timestamp.split(':').map(Number);
       const seconds = time.length === 3 ? time[0] * 3600 + time[1] * 60 + time[2] : time[0] * 60 + time[1];
-      return seconds <= 480; // <= 8 minutes
+      return seconds <= 480; // under 8 minutes
     });
 
     if (!video) {
       clearInterval(autoSongInterval);
       autoSongInterval = null;
-      return reply("✅ All suitable songs sent — stopping auto mode.");
+      return reply("✅ All suitable songs sent — auto mode stopped.");
     }
 
     sentSongUrls.add(video.url);
 
-    const desc = `*"${video.title}"*
+    const caption = `*"${video.title}"*
 
-> *💆‍♂️ Mind Relaxing Best Song 💆‍♂️❤‍🩹*
-> *🎧 ${style.toUpperCase()}*
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-         00:00 ───●────────── ${video.timestamp}   
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-> ❑ Use headphones for best experience.. 🙇‍♂️🎧💗
-> ❑ POWERED BY ZANTA-XMD WHATSAPP BOT
-> ❑ OWNER - +94760264995`;
+> 💆‍♂️ *Mind Relaxing Best Song* 💗  
+> 🎧 *${style.toUpperCase()}*
+───────────────────────
+Use 🎧 for best experience 💫  
+Powered by *ZANTA-XMD BOT*  
+Owner: +94760264995`;
 
+    // send thumbnail
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
-      caption: desc,
+      caption,
     });
 
+    // get mp3 download link
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
 
     if (!data.status || !data.result?.download) {
-      console.error("⚠️ Invalid API response:", data);
       return reply("⚠️ MP3 link not found or invalid from API.");
     }
 
     const mp3Url = data.result.download;
     const tempFile = path.join(__dirname, `${Date.now()}.mp3`);
 
-    // ✅ Verify URL first
+    // verify and download
     try {
       await axios.head(mp3Url);
     } catch {
       return reply("⚠️ Audio file not reachable (URL dead). Skipping...");
     }
 
-    // ✅ Download MP3 locally
     await downloadFile(mp3Url, tempFile);
 
-    // ✅ Send it safely
+    // ✅ send as VOICE NOTE (PTT)
     await conn.sendMessage(targetJid, {
       audio: fs.readFileSync(tempFile),
       mimetype: 'audio/mpeg',
+      ptt: true, // 🔥 voice message style
     });
 
-    fs.unlinkSync(tempFile); // cleanup
+    fs.unlinkSync(tempFile);
 
   } catch (err) {
-    console.error("Song sending error:", err);
-    reply("⚠️ Failed to send song. Retrying next cycle...");
+    console.error("❌ Song send error:", err);
+    reply("⚠️ Something went wrong while sending song.");
   }
 }
 
 // 🎵 .voice1 — every 20 minutes
 cmd({
   pattern: "voice1",
-  desc: "Start sending Sinhala slowed songs every 20 minutes",
+  desc: "Auto Sinhala slowed songs as voice every 20 minutes",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (autoSongInterval) return reply("🟡 Already running!");
-
   const targetJid = m.chat;
-  reply(`✅ Auto song sending started!\n🎶 Styles: ${styles.length} Sinhala slowed types.\n🕒 Sending every 20 minutes.`);
 
-  autoSongInterval = setInterval(() => sendRandomSong(conn, targetJid, reply, 20), 20 * 60 * 1000);
-  await sendRandomSong(conn, targetJid, reply, 20); // send first immediately
+  reply("✅ Auto Sinhala slowed song (🎙️ voice mode) started — every 20 minutes.");
+
+  await sendRandomSong(conn, targetJid, reply);
+  autoSongInterval = setInterval(() => sendRandomSong(conn, targetJid, reply), 1 * 60 * 1000);
 });
 
 // 🎵 .music1 — every 30 minutes
 cmd({
   pattern: "music1",
-  desc: "Start sending Sinhala slowed songs every 30 minutes",
+  desc: "Auto Sinhala slowed songs as voice every 30 minutes",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (autoSongInterval) return reply("🟡 Already running!");
-
   const targetJid = m.chat;
-  reply(`✅ Auto song sending started!\n🎶 Songs will be sent every 30 minutes.`);
 
-  autoSongInterval = setInterval(() => sendRandomSong(conn, targetJid, reply, 1), 30 * 60 * 1000);
-  await sendRandomSong(conn, targetJid, reply, 30);
+  reply("✅ Auto Sinhala slowed song (🎙️ voice mode) started — every 30 minutes.");
+
+  await sendRandomSong(conn, targetJid, reply);
+  autoSongInterval = setInterval(() => sendRandomSong(conn, targetJid, reply), 1 * 60 * 1000);
 });
 
-// ⛔ .stop — stop the loop
+// ⛔ stop command
 cmd({
   pattern: "stop",
-  desc: "Stop automatic song sending",
+  desc: "Stop auto song sending",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  if (!autoSongInterval) return reply("⛔ Not running currently.");
+  if (!autoSongInterval) return reply("⛔ Not running.");
   clearInterval(autoSongInterval);
   autoSongInterval = null;
   reply("🛑 Auto song sending stopped.");
