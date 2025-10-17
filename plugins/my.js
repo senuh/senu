@@ -143,7 +143,7 @@ cmd({
   const targetJid = m.chat;
   reply(`✅ Auto song sending started!\n🎶 Songs will be sent every 30 minutes.`);
 
-  autoSongInterval = setInterval(() => sendRandomSong(conn, targetJid, reply, 30), 30 * 60 * 1000);
+  autoSongInterval = setInterval(() => sendRandomSong(conn, targetJid, reply, 1), 30 * 60 * 1000);
   await sendRandomSong(conn, targetJid, reply, 30);
 });
 
