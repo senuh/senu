@@ -56,15 +56,16 @@ async function sendSinhalaSong(conn, jid, reply, query) {
 
     const caption = `*"${video.title}"*
 
-> *💆‍♂️ Mind Relaxing Best Song 💆❤‍🩹*
+> *💆‍♂️ ᴍɪɴᴅ ʀᴇʟᴀxɪɴɢ ʙᴇꜱᴛ ꜱᴏɴɢ 💆❤‍🩹*
 ▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
 ❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
          00:00 ───●──────────${video.timestamp}    
 ❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
 ▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-> ❑ Use headphones for best experience..🙇‍♂️🎧"🫀
+> ❑ ᴜꜱᴇ ʜᴇᴀᴅᴘʜᴏɴᴇꜱ ꜰᴏʀ ʙᴇꜱᴛ ᴇxᴘᴇʀɪᴇɴᴄᴇ..🙇‍♂️🎧"🫀
 > ❑ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴀɴᴛᴀ-xᴍᴅ ᴡʜᴀᴛꜱᴀᴘᴘ ʙᴏᴛ
 > ❑ ᴢᴀɴᴛᴀ-xᴍᴅ ᴏᴡɴᴇʀ - +94760264995
+
                                ♡          ⎙          ➦ 
                             ʳᵉᵃᶜᵗ       ˢᵃᵛᵉ       ˢʰᵃʳᵉ`;
 
@@ -134,7 +135,7 @@ cmd({
   };
 
   await playRandom();
-  autoSongInterval = setInterval(playRandom, 20 * 60 * 1000);
+  autoSongInterval = setInterval(playRandom, 1 * 60 * 1000);
 });
 
 // 🎵 Auto mode every 30min (music1)
@@ -154,7 +155,7 @@ cmd({
   };
 
   await playRandom();
-  autoSongInterval = setInterval(playRandom, 30 * 60 * 1000);
+  autoSongInterval = setInterval(playRandom, 1 * 60 * 1000);
 });
 
 // 🛑 Stop
