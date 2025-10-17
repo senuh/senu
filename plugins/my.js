@@ -8,7 +8,8 @@ const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 let autoSongInterval = null;
-const sentUrls = new Set();
+const sentUrls = new Set(); // ✅ Prevent duplicate songs
+
 const styles = [
   "sinhala slowed reverb song",
   "sinhala love slowed song",
@@ -40,124 +41,117 @@ async function convertToOpus(inPath, outPath) {
   });
 }
 
-async function getDownloadLinks(url) {
+async function getDownloadLink(url) {
   try {
-    // primary api
     const api = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(url)}&apikey=sadiya`;
     const { data } = await axios.get(api);
     const mp3 = data?.result?.audio || data?.result?.download;
-    const mp4 = data?.result?.video || data?.result?.download;
-    if (mp3 && mp4) return { mp3, mp4 };
+    if (mp3) return mp3;
 
-    // fallback api
     const alt = await axios.get(`https://api.ryzendesu.com/api/yt?url=${encodeURIComponent(url)}`);
-    return {
-      mp3: alt.data?.result?.audio?.url,
-      mp4: alt.data?.result?.video?.url,
-    };
+    return alt.data?.result?.audio?.url;
   } catch {
-    return {};
+    return null;
   }
 }
 
-async function sendSinhalaSong(conn, jid, reply, query) {
+async function sendSinhalaSong(conn, jid, reply, query, sendVoice = false) {
   try {
-    const search = await yts(query);
-    const video = search.videos.find(v => {
-      if (sentUrls.has(v.url)) return false;
-      const t = v.timestamp.split(':').map(Number);
-      const sec = t.length === 3 ? t[0] * 3600 + t[1] * 60 + t[2] : t[0] * 60 + t[1];
-      return sec <= 480;
-    });
-    if (!video) return reply('😢 No suitable Sinhala slowed song found.');
+    let video;
+    let attempts = 0;
 
-    sentUrls.add(video.url);
+    // 🔁 Find unique song (not sent before)
+    while (!video && attempts < 5) {
+      const search = await yts(query);
+      const candidate = search.videos.find(v => {
+        if (sentUrls.has(v.url)) return false;
+        const t = v.timestamp.split(':').map(Number);
+        const sec = t.length === 3 ? t[0] * 3600 + t[1] * 60 + t[2] : t[0] * 60 + t[1];
+        return sec <= 480;
+      });
+      if (candidate) {
+        video = candidate;
+        sentUrls.add(video.url);
+      } else {
+        attempts++;
+      }
+    }
+
+    if (!video) return reply('😢 All suitable Sinhala songs already sent (no repeats left).');
 
     const caption = `🎧 *${video.title}*\n\n💆 Sinhala Slowed / Reverb Song 💫\n───────────────────────\nUse 🎧 for full vibe 💫\nPowered by *ZANTA-XMD BOT*`;
 
     await conn.sendMessage(jid, { image: { url: video.thumbnail }, caption });
 
-    const { mp3, mp4 } = await getDownloadLinks(video.url);
-    if (!mp3) return reply('⚠️ Could not fetch audio.');
+    const mp3Url = await getDownloadLink(video.url);
+    if (!mp3Url) return reply('⚠️ Could not fetch audio.');
 
-    // download + convert voice
     const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
-    const opusPath = path.join(__dirname, `${Date.now()}.opus`);
-    await downloadFile(mp3, mp3Path);
-    await convertToOpus(mp3Path, opusPath);
+    await downloadFile(mp3Url, mp3Path);
 
-    await conn.sendMessage(jid, {
-      audio: fs.readFileSync(opusPath),
-      mimetype: 'audio/ogg; codecs=opus',
-      ptt: true,
-    });
-
-    if (mp4) {
+    if (sendVoice) {
+      const opusPath = path.join(__dirname, `${Date.now()}.opus`);
+      await convertToOpus(mp3Path, opusPath);
       await conn.sendMessage(jid, {
-        video: { url: mp4 },
-        caption: `🎬 *${video.title}* | Sinhala slowed video 💫`,
+        audio: fs.readFileSync(opusPath),
+        mimetype: 'audio/ogg; codecs=opus',
+        ptt: true,
+      });
+      fs.unlinkSync(opusPath);
+    } else {
+      await conn.sendMessage(jid, {
+        audio: fs.readFileSync(mp3Path),
+        mimetype: 'audio/mpeg',
+        fileName: `${video.title}.mp3`
       });
     }
 
     fs.unlinkSync(mp3Path);
-    fs.unlinkSync(opusPath);
   } catch (e) {
     console.error('Error:', e);
     reply('⚠️ Error sending Sinhala song.');
   }
 }
 
-// manual
-cmd({
-  pattern: 'song',
-  desc: 'Send Sinhala slowed song (voice + video)',
-  category: 'music',
-  filename: __filename,
-}, async (conn, mek, m, { reply, args }) => {
-  const q = args.join(' ');
-  if (!q) return reply('💬 Type a song name. Example: *.song pahasara*');
-  await sendSinhalaSong(conn, m.chat, reply, q + ' sinhala slowed reverb');
-});
-
-// auto every 20min
+// 🎵 Auto MP3 mode (20min)
 cmd({
   pattern: 'voice1',
-  desc: 'Auto Sinhala slowed (voice + video) every 20min',
+  desc: 'Auto Sinhala slowed MP3 mode (no repeats)',
   category: 'music',
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (autoSongInterval) return reply('🟡 Already running.');
   const jid = m.chat;
-  reply('✅ Sinhala auto voice mode started (every 20min) 🎧🎬');
+  reply('✅ Sinhala auto MP3 mode started (every 20min, no repeats) 🎵');
 
   const run = async () => {
     const style = styles[Math.floor(Math.random() * styles.length)];
-    await sendSinhalaSong(conn, jid, reply, style);
+    await sendSinhalaSong(conn, jid, reply, style, false);
   };
   await run();
   autoSongInterval = setInterval(run, 20 * 60 * 1000);
 });
 
-// auto every 30min
+// 🎙️ Auto Voice Note mode (30min)
 cmd({
   pattern: 'music1',
-  desc: 'Auto Sinhala slowed (voice + video) every 30min',
+  desc: 'Auto Sinhala slowed Voice Note mode (no repeats)',
   category: 'music',
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (autoSongInterval) return reply('🟡 Already running.');
   const jid = m.chat;
-  reply('✅ Sinhala auto music mode started (every 30min) 🎧🎬');
+  reply('✅ Sinhala auto Voice Note mode started (every 30min, no repeats) 🎙️');
 
   const run = async () => {
     const style = styles[Math.floor(Math.random() * styles.length)];
-    await sendSinhalaSong(conn, jid, reply, style);
+    await sendSinhalaSong(conn, jid, reply, style, true);
   };
   await run();
   autoSongInterval = setInterval(run, 30 * 60 * 1000);
 });
 
-// stop
+// 🛑 Stop auto mode
 cmd({
   pattern: 'stop',
   desc: 'Stop Sinhala song auto mode',
