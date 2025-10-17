@@ -70,69 +70,55 @@ const styles = [
 
 
 cmd({
-  pattern: "voice1",
-  desc: "Start sending YouTube songs under 8 minutes every 8 minutes (no repeats)",
+  pattern: "channelmusic",
+  desc: "Start sending Sinhala songs to a specific group/channel",
   category: "download",
   filename: __filename,
 },
 async (conn, mek, m, { reply }) => {
   if (autoSongInterval) return reply("🟡 Already running!");
 
-  const targetJid = m.chat;
-  reply(`✅ Auto song sending started.\n🎶 Styles: ${styles.join(", ")}\nSongs will be sent every 20 minutes.`);
+  const targetJid = m.chat; // 94769819044@s.whatsapp.net
+
+  reply(`✅ Auto Sinhala slowed songs started to this channel/group.`);
 
   autoSongInterval = setInterval(async () => {
     try {
       const style = styles[Math.floor(Math.random() * styles.length)];
       const search = await yts(style);
 
-      // ✅ Pick only a new song not already sent
       const video = search.videos.find(v => {
         if (sentSongUrls.has(v.url)) return false;
-
         const time = v.timestamp.split(":").map(Number);
         const durationInSec = time.length === 3
           ? time[0] * 3600 + time[1] * 60 + time[2]
           : time[0] * 60 + time[1];
-
-        return durationInSec <= 480; // 8 minutes
+        return durationInSec <= 480;
       });
 
       if (!video) {
         clearInterval(autoSongInterval);
         autoSongInterval = null;
-        return reply("✅ All suitable songs sent (no repeats left). Stopping...");
+        return reply("✅ All songs sent. Stopping.");
       }
 
-      // ✅ Mark as sent
       sentSongUrls.add(video.url);
 
-      const desc = `*"${video.title}"*
+      const desc = `*🎵 ${video.title}*
 
-> *💆‍♂️ Mind Relaxing Best Song 💆❤‍🩹*
-> *🎧 ${style.toUpperCase()}*
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-         00:00 ───●────────── ${video.timestamp}   
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-> ❑ Use headphones for best experience..🙇‍♂️🎧"🫀
-> ❑ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴀɴᴛᴀ-xᴍᴅ ᴡʜᴀᴛꜱᴀᴘᴘ ʙᴏᴛ
-> ❑ ᴢᴀɴᴛᴀ-xᴍᴅ ᴏᴡɴᴇʀ - +94760264995
-
-                               ♡          ⎙          ➦ 
-                            ʳᵉᵃᶜᵗ       ˢᵃᵛᵉ       ˢʰᵃʳᵉ`;
+> *🎧 Style:* ${style.toUpperCase()}
+> *⏱️ Duration:* ${video.timestamp}
+> Powered by Zanta-XMD Bot`;
 
       await conn.sendMessage(targetJid, {
         image: { url: video.thumbnail },
         caption: desc,
       });
 
-      // Download MP3 link
       const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
       const { data } = await axios.get(apiUrl);
 
-      if (data.status && data.result && data.result.download) {
+      if (data.status && data.result?.download) {
         const mp3Url = data.result.download;
 
         await conn.sendMessage(targetJid, {
@@ -140,117 +126,14 @@ async (conn, mek, m, { reply }) => {
           mimetype: "audio/mpeg"
         });
       } else {
-        reply("⚠️ Mp3 link not found from API.");
+        reply("⚠️ Couldn't download audio.");
       }
 
-    } catch (e) {
-      console.error("Song sending error:", e);
+    } catch (err) {
+      console.error("Error sending song:", err);
     }
-  }, 1 * 60 * 1000); // every 20 minutes
+  }, 1 * 60 * 1000); // Every 20 minutes
 });
-
-
-
-
-cmd({
-  pattern: "music1",
-  desc: "Start sending YouTube songs under 8 minutes every 8 minutes (auto styles)",
-  category: "download",
-  filename: __filename,
-},
-async (conn, mek, m, { reply }) => {
-  if (autoSongInterval) return reply("🟡 Already running!");
-
-  const targetJid = m.chat;
-  reply(`✅ Auto song sending started.\n🎶 Styles: ${styles.join(", ")}\nSongs will be sent every 30 minutes.`);
-
-  autoSongInterval = setInterval(async () => {
-    try {
-      const style = styles[Math.floor(Math.random() * styles.length)];
-      const search = await yts(style);
-
-      const video = search.videos.find(v => {
-        if (sentSongUrls.has(v.url)) return false;
-
-        const time = v.timestamp.split(":").map(Number);
-        const durationInSec = time.length === 3
-          ? time[0] * 3600 + time[1] * 60 + time[2]
-          : time[0] * 60 + time[1];
-
-        return durationInSec <= 480;
-      });
-
-      if (!video) {
-        clearInterval(autoSongInterval);
-        autoSongInterval = null;
-        return reply("✅ All suitable songs sent. Stopping...");
-      }
-
-      sentSongUrls.add(video.url);
-
-      const desc = `*"${video.title}*
-
-> *💆‍♂️ Mind Relaxing Best Song 💆❤‍🩹*
-> *🎧 ${style.toUpperCase()}*
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-         00:00 ───●────────── ${video.timestamp}   
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-> ❑ Use headphones for best experience..🙇‍♂️🎧"🫀
-> ❑ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴀɴᴛᴀ-xᴍᴅ ᴡʜᴀᴛꜱᴀᴘᴘ ʙᴏᴛ
-> ❑ ᴢᴀɴᴛᴀ-xᴍᴅ ᴏᴡɴᴇʀ - +94760264995
-
-                               ♡          ⎙          ➦ 
-                            ʳᵉᵃᶜᵗ       ˢᵃᵛᵉ       ˢʰᵃʳᵉ`;
-
-      await conn.sendMessage(targetJid, {
-        image: { url: video.thumbnail },
-        caption: desc,
-      });
-
-      // ⬇️ Download MP3
-      const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
-      const { data } = await axios.get(apiUrl);
-
-      if (data.status && data.result && data.result.download) {
-        const mp3Url = data.result.download;
-
-        // Temp file paths
-        const mp3File = path.join(__dirname, "temp.mp3");
-        const opusFile = path.join(__dirname, "temp.opus");
-
-        // Download mp3 locally
-        const writer = fs.createWriteStream(mp3File);
-        const response = await axios.get(mp3Url, { responseType: "stream" });
-        response.data.pipe(writer);
-
-        await new Promise((resolve, reject) => {
-          writer.on("finish", resolve);
-          writer.on("error", reject);
-        });
-
-
-
-await conn.sendMessage(targetJid, {
-  audio: { url: mp3Url }, 
-  mimetype: "audio/mpeg",
-  ptt: true
-});
-
-        
-
-      } else {
-        reply("⚠️ Mp3 link not found from API.");
-      }
-
-    } catch (e) {
-      console.error("Song sending error:", e);
-    }
-  }, 1 * 60 * 1000); // 8 minutes
-});
-
-
 
 
 cmd({
