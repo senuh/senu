@@ -1,6 +1,5 @@
 const config = require('../settings');
 const { cmd } = require('../lib/command');
-const { getBuffer } = require('../lib/functions');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -34,43 +33,32 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// 🧠 Helper: send a random song
-async function sendRandomSong(conn, targetJid, reply) {
+// 🧠 Helper: send Sinhala slowed song (voice message)
+async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
-    const style = styles[Math.floor(Math.random() * styles.length)];
-    const search = await yts(style);
-
+    const search = await yts(query);
     const video = search.videos.find(v => {
-      if (sentSongUrls.has(v.url)) return false;
       const time = v.timestamp.split(':').map(Number);
       const seconds = time.length === 3 ? time[0] * 3600 + time[1] * 60 + time[2] : time[0] * 60 + time[1];
       return seconds <= 480; // under 8 minutes
     });
 
-    if (!video) {
-      clearInterval(autoSongInterval);
-      autoSongInterval = null;
-      return reply("✅ All suitable songs sent — auto mode stopped.");
-    }
-
-    sentSongUrls.add(video.url);
+    if (!video) return reply("😢 No suitable song found for that name.");
 
     const caption = `*"${video.title}"*
 
 > 💆‍♂️ *Mind Relaxing Best Song* 💗  
-> 🎧 *${style.toUpperCase()}*
+> 🎧 *${query.toUpperCase()}*
 ───────────────────────
 Use 🎧 for best experience 💫  
 Powered by *ZANTA-XMD BOT*  
 Owner: +94760264995`;
 
-    // send thumbnail
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
     });
 
-    // get mp3 download link
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
 
@@ -81,31 +69,44 @@ Owner: +94760264995`;
     const mp3Url = data.result.download;
     const tempFile = path.join(__dirname, `${Date.now()}.mp3`);
 
-    // verify and download
+    // verify & download
     try {
       await axios.head(mp3Url);
     } catch {
-      return reply("⚠️ Audio file not reachable (URL dead). Skipping...");
+      return reply("⚠️ Audio file not reachable (URL dead).");
     }
 
     await downloadFile(mp3Url, tempFile);
 
-    // ✅ send as VOICE NOTE (PTT)
+    // ✅ send as voice note
     await conn.sendMessage(targetJid, {
       audio: fs.readFileSync(tempFile),
       mimetype: 'audio/mpeg',
-      ptt: true, // 🔥 voice message style
+      ptt: true, // 🎙️ Voice note mode
     });
 
     fs.unlinkSync(tempFile);
-
   } catch (err) {
-    console.error("❌ Song send error:", err);
+    console.error("❌ Error sending song:", err);
     reply("⚠️ Something went wrong while sending song.");
   }
 }
 
-// 🎵 .voice1 — every 20 minutes
+// 🟢 .song1 command — user request mode
+cmd({
+  pattern: "song1",
+  desc: "Download any Sinhala slowed/reverb song as a voice message",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply, args }) => {
+  const query = args.join(" ");
+  if (!query) return reply("🌀 Please type a song name.\nExample: *.song pahasara slowed*");
+
+  reply(`🔍 Searching for *${query}* ...`);
+  await sendSinhalaSong(conn, m.chat, reply, query);
+});
+
+// 🎵 .voice1 — auto every 20 min
 cmd({
   pattern: "voice1",
   desc: "Auto Sinhala slowed songs as voice every 20 minutes",
@@ -117,11 +118,14 @@ cmd({
 
   reply("✅ Auto Sinhala slowed song (🎙️ voice mode) started — every 20 minutes.");
 
-  await sendRandomSong(conn, targetJid, reply);
-  autoSongInterval = setInterval(() => sendRandomSong(conn, targetJid, reply), 1 * 60 * 1000);
+  await sendSinhalaSong(conn, targetJid, reply, styles[Math.floor(Math.random() * styles.length)]);
+  autoSongInterval = setInterval(() => {
+    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+    sendSinhalaSong(conn, targetJid, reply, randomStyle);
+  }, 20 * 60 * 1000);
 });
 
-// 🎵 .music1 — every 30 minutes
+// 🎵 .music1 — auto every 30 min
 cmd({
   pattern: "music1",
   desc: "Auto Sinhala slowed songs as voice every 30 minutes",
@@ -133,14 +137,17 @@ cmd({
 
   reply("✅ Auto Sinhala slowed song (🎙️ voice mode) started — every 30 minutes.");
 
-  await sendRandomSong(conn, targetJid, reply);
-  autoSongInterval = setInterval(() => sendRandomSong(conn, targetJid, reply), 1 * 60 * 1000);
+  await sendSinhalaSong(conn, targetJid, reply, styles[Math.floor(Math.random() * styles.length)]);
+  autoSongInterval = setInterval(() => {
+    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+    sendSinhalaSong(conn, targetJid, reply, randomStyle);
+  }, 30 * 60 * 1000);
 });
 
-// ⛔ stop command
+// ⛔ stop auto mode
 cmd({
   pattern: "stop",
-  desc: "Stop auto song sending",
+  desc: "Stop automatic song sending",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
