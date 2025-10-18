@@ -3,87 +3,126 @@ const fs = require("fs");
 const path = require("path");
 const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
 
-//==============================================
-// 🔐 PRIVACY MENU BUTTON + LIST
-//==============================================
+//===========================================================
+// 🔐 PRIVACY LIST MENU (with buttons + sections)
+//===========================================================
 
 cmd({
     pattern: "privacy1",
     alias: ["privacymenu1"],
-    desc: "Open Privacy Menu (v1)",
+    desc: "Privacy menu with list buttons",
     category: "privacy",
     react: "🔐",
     filename: __filename
-},
+}, 
 async (conn, mek, m, { from, pushname, reply }) => {
     try {
-        const menu = `👋 Hello *${pushname || "User"}*  
-🔐 Welcome to *Privacy Control Panel v1*
+        const menuText = `👋 Hello *${pushname || "User"}*!
+🔐 Welcome to *ZANTA × MD Privacy Center v1*
 
-📋 Choose an option below to manage your bot’s privacy settings.`;
+Use this interactive list to manage your bot's privacy settings safely.`;
 
         await conn.sendMessage(from, {
-            text: menu,
-            footer: "🧙‍♂️ ZANTA × MD OFC | Privacy Control v1",
-            buttons: [
-                { buttonId: ".blocklist1", buttonText: { displayText: "📋 Blocklist" }, type: 1 },
-                { buttonId: ".getprivacy1", buttonText: { displayText: "🔍 View Privacy" }, type: 1 },
-            ],
-            viewOnce: true,
-            sections: [{
-                title: "🔐 Privacy Settings Menu v1",
-                rows: [
-                    { title: "💬 Get Bio", rowId: ".getbio1", description: "Get a user's WhatsApp bio" },
-                    { title: "🖼️ Set Profile Privacy", rowId: ".setppall1 all", description: "Set profile picture privacy" },
-                    { title: "🟢 Set Online Privacy", rowId: ".setonline1 all", description: "Set visibility of online status" },
-                    { title: "✏️ Update Bio", rowId: ".updatebio1 Hello there!", description: "Change bot's about info" },
-                    { title: "👥 Group Add Privacy", rowId: ".groupsprivacy1 contacts", description: "Control who can add bot to groups" },
-                    { title: "🧑‍🦰 Get User Profile Picture", rowId: ".getpp1", description: "Fetch user's profile picture" },
-                    { title: "🏷️ Change Bot Name", rowId: ".setmyname1 Zanta-MD", description: "Change bot display name" },
-                    { title: "🖼️ Change Bot Profile Pic", rowId: ".setpp1", description: "Reply to an image to set as profile pic" },
-                ],
-            }],
-            headerType: 4,
+            text: menuText,
+            footer: "🧙‍♂️ 𝐙𝐀𝐍𝐓𝐀 × 𝐌𝐃 𝐎𝐅𝐂 | Privacy System",
+            title: "🔐 Privacy Control Panel v1",
+            buttonText: "📋 OPEN PRIVACY MENU",
+            sections: [
+                {
+                    title: "📋 View Privacy Info",
+                    rows: [
+                        { title: "🔍 View All Privacy Settings", rowId: ".getprivacy1", description: "Check all current privacy settings" },
+                        { title: "📋 Blocked List", rowId: ".blocklist1", description: "View users blocked by the bot" },
+                    ]
+                },
+                {
+                    title: "⚙️ Update Privacy Options",
+                    rows: [
+                        { title: "🖼️ Set Profile Picture Privacy", rowId: ".setppall1 contacts", description: "Choose who can see the bot's profile picture" },
+                        { title: "🟢 Set Online Privacy", rowId: ".setonline1 match_last_seen", description: "Hide or show online status" },
+                        { title: "👥 Set Group Add Privacy", rowId: ".groupsprivacy1 contacts", description: "Choose who can add the bot to groups" },
+                    ]
+                },
+                {
+                    title: "✏️ Profile Updates",
+                    rows: [
+                        { title: "🏷️ Change Bot Name", rowId: ".setmyname1 ZANTA-MD", description: "Update your bot's WhatsApp name" },
+                        { title: "💬 Update Bot Bio", rowId: ".updatebio1 Hello I’m ZANTA MD 🤖", description: "Set a new 'About' status" },
+                        { title: "🖼️ Change Bot Profile Picture", rowId: ".setpp1", description: "Reply to an image and run this command" },
+                    ]
+                },
+                {
+                    title: "🧑‍🦰 User Tools",
+                    rows: [
+                        { title: "💬 Get User Bio", rowId: ".getbio1", description: "Fetch a user’s WhatsApp bio" },
+                        { title: "🧑‍🦰 Get User Profile Picture", rowId: ".getpp1", description: "Fetch someone's profile picture" },
+                    ]
+                },
+            ]
         }, { quoted: mek });
     } catch (e) {
         console.log(e);
-        reply(`⚠️ Error while sending menu:\n${e.message}`);
+        reply(`⚠️ Error while loading privacy menu:\n${e.message}`);
     }
 });
 
-//==============================================
-// 📋 BLOCKLIST
-//==============================================
+//===========================================================
+// 🧩 SUBCOMMANDS BELOW
+//===========================================================
 
 cmd({
     pattern: "blocklist1",
-    desc: "Show blocked users",
+    desc: "View blocked users",
     category: "privacy",
     react: "📋",
     filename: __filename
-},
+}, 
 async (conn, mek, m, { reply, isOwner }) => {
     if (!isOwner) return reply("🚫 Only the bot owner can use this.");
     try {
         const blocked = await conn.fetchBlocklist();
-        if (!blocked || !blocked.length) return reply("✅ No blocked users.");
-        const text = blocked.map((u, i) => `${i + 1}. @${u.split("@")[0]}`).join("\n");
-        await conn.sendMessage(m.chat, { text: `🚫 *Blocked Users:*\n\n${text}`, mentions: blocked }, { quoted: mek });
+        if (!blocked || blocked.length === 0) return reply("✅ No blocked users found.");
+        const list = blocked.map((u, i) => `${i + 1}. @${u.split("@")[0]}`).join("\n");
+        await conn.sendMessage(m.chat, { text: `🚫 *Blocked Users:*\n\n${list}`, mentions: blocked }, { quoted: mek });
     } catch (e) {
         reply(`⚠️ Error: ${e.message}`);
     }
 });
 
-//==============================================
-// 💬 GET BIO
-//==============================================
+cmd({
+    pattern: "getprivacy1",
+    desc: "Show bot privacy settings",
+    category: "privacy",
+    react: "🔍",
+    filename: __filename
+}, 
+async (conn, mek, m, { reply, isOwner }) => {
+    if (!isOwner) return reply("🚫 Only the bot owner can use this.");
+    try {
+        const p = await conn.fetchPrivacySettings(true);
+        if (!p) return reply("⚠️ Could not fetch privacy settings.");
+        let txt = `╭───「 *Privacy Settings* 」───◆
+│ 👀 Last Seen: ${p.last}
+│ 🖼️ Profile Photo: ${p.profile}
+│ 💬 Status: ${p.status}
+│ 🟢 Online: ${p.online}
+│ 👥 Group Add: ${p.groupadd}
+│ 📞 Call Privacy: ${p.calladd}
+│ 📩 Read Receipts: ${p.readreceipts}
+╰────────────────────`;
+        reply(txt);
+    } catch (e) {
+        reply(`⚠️ Error: ${e.message}`);
+    }
+});
 
 cmd({
     pattern: "getbio1",
-    desc: "Get a user's bio",
+    desc: "Fetch user bio",
     category: "privacy",
+    react: "💬",
     filename: __filename
-},
+}, 
 async (conn, mek, m, { args, reply }) => {
     try {
         const jid = args[0] || mek.key.remoteJid;
@@ -95,78 +134,38 @@ async (conn, mek, m, { args, reply }) => {
     }
 });
 
-//==============================================
-// 🔍 GET PRIVACY
-//==============================================
-
-cmd({
-    pattern: "getprivacy1",
-    desc: "Show bot privacy settings",
-    category: "privacy",
-    react: "🔍",
-    filename: __filename
-},
-async (conn, mek, m, { reply, isOwner }) => {
-    if (!isOwner) return reply("🚫 Only the owner can use this.");
-    try {
-        const data = await conn.fetchPrivacySettings(true);
-        if (!data) return reply("⚠️ Could not fetch privacy settings.");
-
-        let msg = `╭───「 *Privacy Settings v1* 」───◆
-│ 👀 Last Seen: ${data.last}
-│ 🖼️ Profile Photo: ${data.profile}
-│ 💬 Status: ${data.status}
-│ 🟢 Online: ${data.online}
-│ 👥 Group Add: ${data.groupadd}
-│ 📞 Call Privacy: ${data.calladd}
-│ 📩 Read Receipts: ${data.readreceipts}
-╰────────────────────`;
-        reply(msg);
-    } catch (e) {
-        reply(`⚠️ Error fetching privacy:\n${e.message}`);
-    }
-});
-
-//==============================================
-// ✏️ UPDATE BIO
-//==============================================
-
-cmd({
-    pattern: "updatebio1",
-    desc: "Update bot's about section",
-    category: "privacy",
-    react: "✏️",
-    filename: __filename
-},
-async (conn, mek, m, { q, reply, isOwner }) => {
-    if (!isOwner) return reply("🚫 Only the bot owner can update bio.");
-    if (!q) return reply("❓ Please provide new bio text.");
-    if (q.length > 139) return reply("❗ Bio too long (max 139 chars).");
-    try {
-        await conn.updateProfileStatus(q);
-        reply("✅ Bot bio updated successfully!");
-    } catch (e) {
-        reply(`⚠️ Error: ${e.message}`);
-    }
-});
-
-//==============================================
-// 🧑‍🦰 GET PROFILE PIC
-//==============================================
-
 cmd({
     pattern: "getpp1",
-    desc: "Get a user's profile picture",
+    desc: "Get profile pic of a user",
     category: "privacy",
-    react: "🧑‍🦰",
+    react: "🖼️",
     filename: __filename
-},
+}, 
 async (conn, mek, m, { quoted, sender, reply }) => {
     try {
         const target = quoted?.sender || sender;
         const url = await conn.profilePictureUrl(target, "image").catch(() => null);
         if (!url) return reply("⚠️ No profile picture found.");
         await conn.sendMessage(m.chat, { image: { url }, caption: "🖼️ User Profile Picture" }, { quoted: mek });
+    } catch (e) {
+        reply(`⚠️ Error: ${e.message}`);
+    }
+});
+
+cmd({
+    pattern: "updatebio1",
+    desc: "Update bot about text",
+    category: "privacy",
+    react: "✏️",
+    filename: __filename
+}, 
+async (conn, mek, m, { q, reply, isOwner }) => {
+    if (!isOwner) return reply("🚫 Only the owner can update the bio.");
+    if (!q) return reply("❓ Please enter a new bio.");
+    if (q.length > 139) return reply("❗ Bio text too long.");
+    try {
+        await conn.updateProfileStatus(q);
+        reply("✅ Bio updated successfully!");
     } catch (e) {
         reply(`⚠️ Error: ${e.message}`);
     }
