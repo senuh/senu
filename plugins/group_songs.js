@@ -180,11 +180,6 @@ cmd({
     text: "🎛 *Music Settings Panel* 🎶\n\nCustomize your Sinhala Slowed Song Experience 👇",
     footer: "🎵 Sinhala Music Control Menu",
     buttons: [
-      { buttonId: ".style love", buttonText: { displayText: "💞 Love Slowed" }, type: 1 },
-      { buttonId: ".style sad", buttonText: { displayText: "😢 Sad Vibe" }, type: 1 },
-      { buttonId: ".style mashup", buttonText: { displayText: "🎧 Mashup Reverb" }, type: 1 },
-      { buttonId: ".style teledrama", buttonText: { displayText: "📺 Teledrama Song" }, type: 1 },
-      { buttonId: ".style 2024", buttonText: { displayText: "⚡ 2024 Trend" }, type: 1 },
       { buttonId: ".autoreact on", buttonText: { displayText: "⚙️ Auto React ON" }, type: 1 },
       { buttonId: ".autoreact off", buttonText: { displayText: "🛑 Auto React OFF" }, type: 1 },
     ],
