@@ -1,4 +1,7 @@
-//================= IMPORTS =================
+//═══════════════════════════════════════════════════════════════════════════════
+//        🎵 Sinhala Auto Music Bot - Full Complete Version (All Buttons)
+//═══════════════════════════════════════════════════════════════════════════════
+
 const { cmd } = require('../lib/command');
 const fs = require('fs');
 const path = require('path');
@@ -10,9 +13,10 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 //================= GLOBALS =================
 let autoSongIntervals = {};
+let groupIntervals = {}; 
 let playedSongs = {};
-let lastQueryPerChat = {};
-const OWNER_JID = "94760264995@s.whatsapp.net"; // <-- Replace with your number
+let autoReact = {};
+const OWNER_JID = "94760264995@s.whatsapp.net";
 
 const styles = [
   "sinhala slowed reverb song",
@@ -49,7 +53,6 @@ async function convertToOpus(inputPath, outputPath) {
 //================= MAIN SONG FUNCTION =================
 async function sendSinhalaSong(conn, jid, reply, query) {
   try {
-    lastQueryPerChat[jid] = query;
     const search = await yts(query);
     const video = search.videos.find(v => v.seconds <= 480);
     if (!video) return reply("😭 සුදුසු සින්දුවක් හමු නොවුණා.");
@@ -61,8 +64,8 @@ async function sendSinhalaSong(conn, jid, reply, query) {
 
     const caption = `🎶 *${video.title}* 🎶
 
-💆‍♂️ සිංහල Mind Relaxing Song
-🎧 හොඳ vibe එකක් දැනගන්න Headphones එකක් අනිවාර්යයි!
+💆‍♂️ සිංහල Mind Relaxing Song  
+🎧 හොඳ vibe එකක් දැනගන්න Headphones එකක් අනිවාර්යයි!  
 ⚡ Powered by ZANTA-XMD BOT`;
 
     await conn.sendMessage(jid, {
@@ -71,13 +74,14 @@ async function sendSinhalaSong(conn, jid, reply, query) {
       footer: "🎵 Sinhala Vibe Menu",
       buttons: [
         { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
-        { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+        { buttonId: ".groupsong", buttonText: { displayText: "👥 Group Auto Mode" }, type: 1 },
+        { buttonId: ".sinhalavoice", buttonText: { displayText: "🎶 Auto Sinhala (Private)" }, type: 1 },
         { buttonId: ".clickhere", buttonText: { displayText: "🎛 Music Settings" }, type: 1 },
+        { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
       ],
       headerType: 4,
     });
 
-    // ===== Download & Convert =====
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
     if (!data.status || !data.result?.download) return reply("⚠️ mp3 link එක ගන්න බැරි උනා.");
@@ -89,18 +93,15 @@ async function sendSinhalaSong(conn, jid, reply, query) {
     await downloadFile(data.result.download, mp3Path);
     await convertToOpus(mp3Path, opusPath);
 
-    // 🎤 Send as voice note
     await conn.sendMessage(jid, {
       audio: fs.readFileSync(opusPath),
       mimetype: "audio/ogg; codecs=opus",
       ptt: true,
     });
 
-    // 🧹 Cleanup
     try { fs.unlinkSync(mp3Path); } catch {}
     try { fs.unlinkSync(opusPath); } catch {}
 
-    // 💬 Send feedback buttons 2s later
     setTimeout(async () => {
       await conn.sendMessage(jid, {
         text: `💬 ඔයාට මේ සින්දුව කොහොමද? 🎧`,
@@ -108,6 +109,7 @@ async function sendSinhalaSong(conn, jid, reply, query) {
         buttons: [
           { buttonId: `.feedback good ${video.title}`, buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
           { buttonId: `.feedback bad ${video.title}`, buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
+          { buttonId: ".groupsong", buttonText: { displayText: "👥 Activate Group Auto" }, type: 1 },
         ],
         headerType: 4,
       });
@@ -115,20 +117,11 @@ async function sendSinhalaSong(conn, jid, reply, query) {
 
   } catch (err) {
     console.error("Send error:", err);
-    const ownerPhone = OWNER_JID.split('@')[0];
-    const waLink = `https://wa.me/${ownerPhone}?text=${encodeURIComponent('Hi, I need help with the bot. Error: ' + (err.message || 'unknown'))}`;
-    await conn.sendMessage(jid, {
-      text: `😭 Song එක යවන වෙලාවට error එකක් උනා.\n\n📞 Owner එකට Contact වෙන්න:\n${waLink}`,
-      buttons: [
-        { buttonId: ".retry", buttonText: { displayText: "🔁 Retry" }, type: 1 },
-        { buttonId: ".contactowner", buttonText: { displayText: "📞 Contact Owner" }, type: 1 },
-      ],
-      headerType: 1,
-    });
+    reply("⚠️ Song එක යවන වෙලාවට Error එකක් උනා.");
   }
 }
 
-//================= AUTO SINHALA =================
+//================= PRIVATE AUTO SONG MODE =================
 cmd({
   pattern: "sinhalavoice",
   desc: "Auto Sinhala slowed songs every 10 minutes",
@@ -144,9 +137,11 @@ cmd({
       { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
       { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
       { buttonId: ".clickhere", buttonText: { displayText: "🎛 Music Settings" }, type: 1 },
+      { buttonId: ".groupsong", buttonText: { displayText: "👥 Group Auto Mode" }, type: 1 },
     ],
     headerType: 4,
   });
+
   const sendRandom = async () => {
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
     await sendSinhalaSong(conn, jid, reply, randomStyle);
@@ -155,17 +150,84 @@ cmd({
   autoSongIntervals[jid] = setInterval(sendRandom, 10 * 60 * 1000);
 });
 
-//================= NEXT SONG =================
+//================= GROUP AUTO SONG MODE =================
 cmd({
-  pattern: "nextsong",
-  desc: "Play next Sinhala slowed song immediately",
+  pattern: "groupsong",
+  desc: "Activate Sinhala auto songs for group",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   const jid = m.chat;
-  reply("✅ *Next Sinhala slowed song loading...* 🎧");
-  const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-  await sendSinhalaSong(conn, jid, reply, randomStyle);
+  if (!m.isGroup) return reply("⚠️ මේ feature එක Groups වලට විතරයි!");
+  if (autoSongIntervals[jid]) return reply("🟡 Group Auto Sinhala mode already running!");
+
+  await conn.sendMessage(jid, {
+    text: "👥 *Group Sinhala Auto Mode Activated!*\n🎶 හැම මිනිත්තු 10කටම Sinhala slowed song එකක් ලැබෙනවා.\n👇 Controls:",
+    footer: "🎵 Sinhala Vibe Menu",
+    buttons: [
+      { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
+      { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+      { buttonId: ".groupinterval", buttonText: { displayText: "🕒 Change Interval" }, type: 1 },
+      { buttonId: ".clickhere", buttonText: { displayText: "🎛 Music Settings" }, type: 1 },
+    ],
+    headerType: 4,
+  });
+
+  const sendRandom = async () => {
+    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+    await sendSinhalaSong(conn, jid, reply, randomStyle);
+  };
+
+  await sendRandom();
+  const interval = (groupIntervals[jid] || 10) * 60 * 1000;
+  autoSongIntervals[jid] = setInterval(sendRandom, interval);
+});
+
+//================= INTERVAL SETTINGS =================
+cmd({
+  pattern: "groupinterval",
+  desc: "Change Sinhala auto song interval in group",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  const jid = m.chat;
+  if (!m.isGroup) return reply("⚠️ මේ command එක Groups වලට විතරයි!");
+
+  await conn.sendMessage(jid, {
+    text: "🕒 *Select Auto Song Interval* \nඔයාට කැමති වේලාව තෝරන්න 👇",
+    footer: "🎵 Sinhala Auto Settings",
+    buttons: [
+      { buttonId: ".setinterval 5", buttonText: { displayText: "5 Minutes" }, type: 1 },
+      { buttonId: ".setinterval 10", buttonText: { displayText: "10 Minutes" }, type: 1 },
+      { buttonId: ".setinterval 15", buttonText: { displayText: "15 Minutes" }, type: 1 },
+      { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+    ],
+    headerType: 4,
+  });
+});
+
+cmd({
+  pattern: "setinterval",
+  desc: "Set Sinhala auto song interval time",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { args, reply }) => {
+  const jid = m.chat;
+  const minutes = parseInt(args[0]);
+  if (isNaN(minutes) || minutes < 1) return reply("⚠️ වැරදි වේලාවක්! ex: .setinterval 10");
+
+  groupIntervals[jid] = minutes;
+  reply(`✅ Auto Song Interval set to *${minutes} minutes* 🕒`);
+
+  if (autoSongIntervals[jid]) {
+    clearInterval(autoSongIntervals[jid]);
+    const sendRandom = async () => {
+      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+      await sendSinhalaSong(conn, jid, reply, randomStyle);
+    };
+    autoSongIntervals[jid] = setInterval(sendRandom, minutes * 60 * 1000);
+    reply("🔁 Auto Sinhala system restarted with new interval!");
+  }
 });
 
 //================= STOP AUTO =================
@@ -180,70 +242,4 @@ cmd({
   clearInterval(autoSongIntervals[jid]);
   delete autoSongIntervals[jid];
   reply("🛑 Auto Sinhala slowed songs mode එක නවතා දමන ලදි.");
-});
-
-//================= MANUAL SONG SEARCH =================
-cmd({
-  pattern: "song3",
-  desc: "Search Sinhala slowed song or trending list",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { args, reply }) => {
-  const jid = m.chat;
-  const query = args.join(" ").trim();
-  if (query) {
-    const q = `${query} sinhala slowed reverb song`;
-    reply(`🔍 Searching YouTube for *${query} slowed Sinhala song...* 🎧`);
-    await sendSinhalaSong(conn, jid, reply, q);
-    return;
-  }
-  try {
-    const { videos } = await yts("sinhala slowed reverb song");
-    if (!videos || videos.length === 0) return reply("⚠️ Sinhala slowed songs හමු නොවුණා.");
-    const top5 = videos.slice(0, 5);
-    const buttons = top5.map(v => ({
-      buttonId: `.song3 ${v.title}`,
-      buttonText: { displayText: `🎵 ${v.title.slice(0, 25)}...` },
-      type: 1,
-    }));
-    await conn.sendMessage(jid, {
-      text: `🎧 *Trending Sinhala Slowed Songs* 🎶\n\nඔයාට කැමති එකක් තෝරන්න 👇`,
-      footer: "⚡ Powered by ZANTA-XMD BOT",
-      buttons,
-      headerType: 4,
-    });
-  } catch (err) {
-    console.error(err);
-    reply("❌ Sinhala songs list එක ගන්න Error එකක් උනා.");
-  }
-});
-
-//================= FEEDBACK SYSTEM =================
-cmd({
-  pattern: "feedback",
-  desc: "Send song feedback to bot owner",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { args, reply }) => {
-  const type = args[0];
-  const songName = args.slice(1).join(" ") || "Unknown Song";
-  const senderNum = m.sender.split("@")[0];
-  const user = m.pushName || senderNum;
-  const groupName = m.isGroup ? m.chat : "Private Chat";
-  const ownerJid = OWNER_JID;
-
-  let msgText;
-  if (type === "good") {
-    msgText = `🩷 *Feedback Alert!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Liked the song\n🎶 Song: ${songName}\n📍 Chat: ${groupName}`;
-    await reply("🩷 ඔබගේ අදහස Owner ට යවන ලදි ✅");
-  } else if (type === "bad") {
-    msgText = `💔 *Feedback Alert!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Didn't like the song\n🎶 Song: ${songName}\n📍 Chat: ${groupName}`;
-    await reply("💔 ඔබගේ අදහස Owner ට යවන ලදි 😢");
-  } else return reply("⚠️ වැරදි feedback command එකක්!");
-
-  try {
-    await conn.sendMessage(ownerJid, { text: msgText });
-  } catch (err) {
-    console.error("Error sending feedback to owner:", err);
-  }
 });
