@@ -47,12 +47,13 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
+// ====== Main Sinhala Song Function ======
 async function sendSinhalaSong(conn, jid, reply, query) {
   try {
-    // Force Sinhala slowed search query
     const search = await yts(`${query} sinhala slowed reverb`);
-    
-    // Sinhala-only + slowed filter
+    if (!search.videos || !search.videos.length)
+      return reply("😔 Sinhala slowed song එකක් හමු නොවුණා.");
+
     const video = search.videos.find(v => {
       const lower = v.title.toLowerCase();
       const isSinhala = lower.includes("sinhala") || lower.includes("සිංහල");
@@ -78,25 +79,28 @@ async function sendSinhalaSong(conn, jid, reply, query) {
     await conn.sendMessage(jid, {
       image: { url: video.thumbnail },
       caption,
-      footer: "🎵 Sinhala Vibe Menu",
       buttons: [
-        { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
-        { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
-        { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here Menu" }, type: 1 },
+        { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" } },
+        { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" } },
+        { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here Menu" } },
       ],
-      headerType: 4,
+      footer: "🎵 Sinhala Vibe Menu"
     });
 
-    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
+    // ====== UPDATED YouTube Download API ======
+    const apiUrl = `https://api.akuarik.repl.co/api/ytdl?url=${encodeURIComponent(video.url)}&type=audio`;
     const { data } = await axios.get(apiUrl);
 
-    if (!data.status || !data.result?.download) return reply("⚠️ Couldn't fetch mp3 link.");
+    if (!data || !data.result || !data.result.audio)
+      return reply("⚠️ Couldn't fetch mp3 link from YouTube. Try again later.");
 
+    const downloadUrl = data.result.audio;
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     const mp3Path = path.join(__dirname, `${unique}.mp3`);
     const opusPath = path.join(__dirname, `${unique}.opus`);
 
-    await downloadFile(data.result.download, mp3Path);
+    reply("🎧 Downloading Sinhala slowed song... ⏳");
+    await downloadFile(downloadUrl, mp3Path);
     await convertToOpus(mp3Path, opusPath);
 
     await conn.sendMessage(jid, {
@@ -107,14 +111,13 @@ async function sendSinhalaSong(conn, jid, reply, query) {
 
     fs.unlinkSync(mp3Path);
     fs.unlinkSync(opusPath);
-
   } catch (err) {
     console.error("Send error:", err);
     reply("😭 Song එක ගන්න ගිහිල්ලා error එකක් ආවා.");
   }
 }
 
-// ====== Sinhala Voice Auto Mode ======
+// ====== Auto Sinhala Slowed Mode ======
 cmd({
   pattern: "sinhalavoice",
   desc: "Auto Sinhala slowed songs with buttons",
@@ -122,20 +125,18 @@ cmd({
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   const jid = m.chat;
-
   if (autoSongIntervals[jid]) return reply("🟡 Auto Sinhala mode already running!");
 
   await conn.sendMessage(jid, {
     text: `🎧 *Auto Sinhala Slowed Songs Activated!*  
 You'll get a new Sinhala slowed song every 20 minutes.  
 Use the menu below to control playback 👇`,
-    footer: "🎵 Sinhala Vibe Menu",
     buttons: [
-      { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
-      { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
-      { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here Menu" }, type: 1 },
+      { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" } },
+      { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" } },
+      { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here Menu" } },
     ],
-    headerType: 4,
+    footer: "🎵 Sinhala Vibe Menu"
   });
 
   const sendRandom = async () => {
@@ -182,19 +183,17 @@ cmd({
   filename: __filename,
 }, async (conn, mek, m) => {
   const jid = m.chat;
-
   await conn.sendMessage(jid, {
     text: "📀 *Choose your Sinhala Slowed Vibe* 🎧\nSelect a style below 👇",
-    footer: "🎵 Sinhala Style Playlist Menu",
     buttons: [
-      { buttonId: ".style love", buttonText: { displayText: "💞 Love Slowed" }, type: 1 },
-      { buttonId: ".style sad", buttonText: { displayText: "😢 Sad Vibe" }, type: 1 },
-      { buttonId: ".style mashup", buttonText: { displayText: "🎧 Mashup Reverb" }, type: 1 },
-      { buttonId: ".style teledrama", buttonText: { displayText: "📺 Teledrama Song" }, type: 1 },
-      { buttonId: ".style 2024", buttonText: { displayText: "⚡ 2024 Trend" }, type: 1 },
-      { buttonId: ".trendinglist", buttonText: { displayText: "🔥 Trending Playlist" }, type: 1 },
+      { buttonId: ".style love", buttonText: { displayText: "💞 Love Slowed" } },
+      { buttonId: ".style sad", buttonText: { displayText: "😢 Sad Vibe" } },
+      { buttonId: ".style mashup", buttonText: { displayText: "🎧 Mashup Reverb" } },
+      { buttonId: ".style teledrama", buttonText: { displayText: "📺 Teledrama Song" } },
+      { buttonId: ".style 2024", buttonText: { displayText: "⚡ 2024 Trend" } },
+      { buttonId: ".trendinglist", buttonText: { displayText: "🔥 Trending Playlist" } },
     ],
-    headerType: 4,
+    footer: "🎵 Sinhala Style Playlist Menu"
   });
 });
 
@@ -242,77 +241,14 @@ cmd({
 
     await conn.sendMessage(jid, {
       text: msg,
-      footer: "🎶 Sinhala Trending Playlist",
       buttons: [
-        { buttonId: ".style trend", buttonText: { displayText: "🎧 Play Trending Song" }, type: 1 },
-        { buttonId: ".clickhere", buttonText: { displayText: "📀 Back to Menu" }, type: 1 },
+        { buttonId: ".style trend", buttonText: { displayText: "🎧 Play Trending Song" } },
+        { buttonId: ".clickhere", buttonText: { displayText: "📀 Back to Menu" } },
       ],
-      headerType: 4,
+      footer: "🎶 Sinhala Trending Playlist"
     });
   } catch (err) {
     console.error(err);
     reply("❌ Error while fetching Sinhala trending songs.");
   }
-});
-
-// ====== Auto Trending ======
-cmd({
-  pattern: "autotrend",
-  desc: "Automatically update Sinhala trending playlist every 1 hour",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const jid = m.chat;
-  if (autoTrendInterval) return reply("🟡 Auto trending mode already running!");
-
-  reply("✅ Auto Sinhala Trending Playlist Activated!\nBot will refresh trending songs every hour.");
-
-  const sendTrending = async () => {
-    try {
-      const search = await yts("sinhala slowed reverb song");
-      const trending = search.videos
-        .filter(v => {
-          const lower = v.title.toLowerCase();
-          return (lower.includes("sinhala") || lower.includes("සිංහල")) &&
-                 (lower.includes("slowed") || lower.includes("reverb")) &&
-                 v.seconds < 480;
-        })
-        .slice(0, 8);
-
-      if (!trending.length) return;
-
-      let msg = "🔥 *Auto-Updated Sinhala Slowed/Reverb Songs* 🔥\n\n";
-      trending.forEach((v, i) => {
-        msg += `🎵 *${i + 1}. ${v.title}*\n📺 https://youtu.be/${v.videoId}\n\n`;
-      });
-
-      await conn.sendMessage(jid, {
-        text: msg,
-        footer: "🎶 Auto Sinhala Trending Playlist",
-        buttons: [
-          { buttonId: ".style trend", buttonText: { displayText: "🎧 Play Trending Song" }, type: 1 },
-          { buttonId: ".stoptrend", buttonText: { displayText: "🛑 Stop Auto Trend" }, type: 1 },
-        ],
-        headerType: 4,
-      });
-    } catch (err) {
-      console.error("Trending fetch error:", err);
-    }
-  };
-
-  await sendTrending();
-  autoTrendInterval = setInterval(sendTrending, 60 * 60 * 1000);
-});
-
-// ====== Stop Auto Trending ======
-cmd({
-  pattern: "stoptrend",
-  desc: "Stop automatic Sinhala trending updates",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  if (!autoTrendInterval) return reply("⚠️ Auto trending not running.");
-  clearInterval(autoTrendInterval);
-  autoTrendInterval = null;
-  reply("🛑 Auto Sinhala Trending stopped.");
 });
