@@ -11,11 +11,11 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 let autoSongIntervals = {};
 let playedSongs = {};
 let autoReactEnabled = true;
-let songIntervalMinutes = 10; // default interval
-let sendMode = "both"; // "groups" | "channels" | "both"
+let songIntervalMinutes = 10;
+let sendMode = "both";
 const OWNER_JID = "94760264995@s.whatsapp.net";
 
-// Load saved settings if exist
+// ====== Settings File ======
 const settingsFile = path.join(__dirname, 'interval.json');
 if (fs.existsSync(settingsFile)) {
   try {
@@ -78,32 +78,55 @@ async function sendSinhalaSong(conn, jid, reply, query) {
 🎧 Use headphones for best vibe
 ⚡ Powered by ZANTA-XMD BOT`;
 
-    // ====== Send target type handling ======
-    if (sendMode === "channels" && !jid.includes("@newsletter")) {
-      return; // Skip non-channels
-    } else if (sendMode === "groups" && jid.includes("@newsletter")) {
-      return; // Skip channels
-    }
+    // === Mode Filter ===
+    if (sendMode === "channels" && !jid.includes("@newsletter")) return;
+    if (sendMode === "groups" && jid.includes("@newsletter")) return;
 
-    const msg = await conn.sendMessage(jid, {
-      image: { url: video.thumbnail },
-      caption,
-      footer: "🎵 Sinhala Vibe Menu",
-      buttons: [
-        { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
-        { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
-        { buttonId: ".clickhere", buttonText: { displayText: "🎛 Music Settings" }, type: 1 },
-      ],
-      headerType: 4,
-    });
+    const buttons = [
+      { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
+      { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+      { buttonId: ".clickhere", buttonText: { displayText: "🎛 Music Settings" }, type: 1 },
+    ];
 
-    if (autoReactEnabled) {
-      await conn.sendMessage(jid, { react: { text: "😍", key: msg.key } });
+    if (jid.includes("@newsletter")) {
+      await conn.sendMessage(jid, {
+        viewOnceMessage: {
+          message: {
+            interactiveMessage: {
+              header: {
+                title: "🎧 Sinhala Vibe Mode",
+                hasMediaAttachment: true,
+                imageMessage: { url: video.thumbnail },
+              },
+              body: { text: caption },
+              footer: { text: "⚡ Powered by ZANTA-XMD BOT" },
+              nativeFlowMessage: {
+                buttons: [
+                  { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "🎵 Next Song", url: video.url }) },
+                  { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "⛔ Stop Auto", url: "https://youtube.com" }) },
+                  { name: "cta_url", buttonParamsJson: JSON.stringify({ display_text: "🎛 Settings", url: "https://youtube.com" }) },
+                ],
+              },
+            },
+          },
+        },
+      });
+    } else {
+      const msg = await conn.sendMessage(jid, {
+        image: { url: video.thumbnail },
+        caption,
+        footer: "🎵 Sinhala Vibe Menu",
+        buttons,
+        headerType: 4,
+      });
+
+      if (autoReactEnabled) {
+        await conn.sendMessage(jid, { react: { text: "😍", key: msg.key } });
+      }
     }
 
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
-
     if (!data.status || !data.result?.download) return reply("⚠️ Couldn't fetch mp3 link.");
 
     const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -127,10 +150,10 @@ async function sendSinhalaSong(conn, jid, reply, query) {
   }
 }
 
-// ====== Sinhala Auto Mode ======
+// ====== Auto Sinhala Mode ======
 cmd({
   pattern: "sinhalavoice",
-  desc: "Auto Sinhala slowed songs with custom interval",
+  desc: "Auto Sinhala slowed songs with interval",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
@@ -138,8 +161,10 @@ cmd({
   if (autoSongIntervals[jid]) return reply("🟡 Auto Sinhala mode already running!");
 
   await conn.sendMessage(jid, {
-    text: `🎧 *Auto Sinhala Songs Activated!*\n⏱ Every *${songIntervalMinutes} minutes*\n📡 Send Mode: *${sendMode.toUpperCase()}*`,
-    footer: "🎵 Sinhala Control Menu",
+    text: `🎧 *Auto Sinhala Slowed Songs Activated!*
+⏱ Every *${songIntervalMinutes} minutes*
+📡 Send Mode: *${sendMode.toUpperCase()}*`,
+    footer: "🎵 Sinhala Vibe Menu",
     buttons: [
       { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
       { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
@@ -168,10 +193,32 @@ cmd({
   if (!autoSongIntervals[jid]) return reply("⚠️ Auto mode not running.");
   clearInterval(autoSongIntervals[jid]);
   delete autoSongIntervals[jid];
-  reply("🛑 Auto Sinhala songs stopped.");
+  reply("🛑 Auto Sinhala slowed songs stopped.");
 });
 
-// ====== Music Settings Menu ======
+// ====== Manual Song Search ======
+cmd({
+  pattern: "song3",
+  desc: "Play Sinhala song manually or search your own",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply, args }) => {
+  const jid = m.chat;
+  let query = args.join(" ");
+  if (!query) {
+    // no custom song name → random Sinhala vibe
+    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+    reply("🎵 Loading Sinhala slowed song...");
+    await sendSinhalaSong(conn, jid, reply, randomStyle);
+  } else {
+    // custom search song
+    query = `${query} sinhala slowed reverb song`;
+    reply(`🎶 Searching and loading *${args.join(" ")}* ...`);
+    await sendSinhalaSong(conn, jid, reply, query);
+  }
+});
+
+// ====== Music Settings ======
 cmd({
   pattern: "clickhere",
   desc: "Open Sinhala music settings",
@@ -181,7 +228,7 @@ cmd({
   const jid = m.chat;
   await conn.sendMessage(jid, {
     text: `🎛 *Music Settings Panel* 🎶
-    
+
 🕒 Interval: *${songIntervalMinutes} min*
 💬 Auto React: *${autoReactEnabled ? "ON" : "OFF"}*
 📡 Send Mode: *${sendMode.toUpperCase()}*`,
@@ -189,6 +236,7 @@ cmd({
     buttons: [
       { buttonId: ".intervalmenu", buttonText: { displayText: "⏱ Change Interval" }, type: 1 },
       { buttonId: ".sendmode", buttonText: { displayText: "📡 Send Mode" }, type: 1 },
+      { buttonId: ".song3", buttonText: { displayText: "🎵 Play One Song" }, type: 1 },
       { buttonId: ".autoreact on", buttonText: { displayText: "⚙️ Auto React ON" }, type: 1 },
       { buttonId: ".autoreact off", buttonText: { displayText: "🛑 Auto React OFF" }, type: 1 },
     ],
@@ -196,7 +244,7 @@ cmd({
   });
 });
 
-// ====== Interval Change ======
+// ====== Interval, Mode, React Commands (Same as v2) ======
 cmd({
   pattern: "intervalmenu",
   desc: "Select auto-song interval",
@@ -220,29 +268,28 @@ cmd({
 
 cmd({
   pattern: "interval",
-  desc: "Set auto song interval (owner only)",
+  desc: "Set interval (owner only)",
   category: "owner",
   filename: __filename,
 }, async (conn, mek, m, { args, reply }) => {
   if (m.sender !== OWNER_JID) return reply("⚠️ Owner only.");
   const minutes = parseInt(args[0]);
-  if (!minutes || minutes < 1 || minutes > 60) return reply("⏱ Enter valid number (1-60)");
+  if (!minutes || minutes < 1 || minutes > 60) return reply("⏱ Enter valid number (1–60)");
   songIntervalMinutes = minutes;
   fs.writeFileSync(settingsFile, JSON.stringify({ interval: songIntervalMinutes, sendMode }));
   reply(`✅ Interval set to *${songIntervalMinutes} minutes*`);
 });
 
-// ====== Send Mode Control ======
 cmd({
   pattern: "sendmode",
-  desc: "Select where auto songs send (owner only)",
+  desc: "Select send mode",
   category: "owner",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (m.sender !== OWNER_JID) return reply("⚠️ Owner only.");
   const jid = m.chat;
   await conn.sendMessage(jid, {
-    text: "📡 *Select Send Mode*\n\nChoose where Sinhala songs should auto-send 👇",
+    text: "📡 *Select Send Mode*",
     footer: "🎵 Sinhala Send Mode Menu",
     buttons: [
       { buttonId: ".setmode groups", buttonText: { displayText: "👥 Groups Only" }, type: 1 },
@@ -265,4 +312,23 @@ cmd({
   sendMode = mode;
   fs.writeFileSync(settingsFile, JSON.stringify({ interval: songIntervalMinutes, sendMode }));
   reply(`✅ Send Mode set to *${sendMode.toUpperCase()}*`);
+});
+
+cmd({
+  pattern: "autoreact",
+  desc: "Toggle auto react (owner only)",
+  category: "owner",
+  filename: __filename,
+}, async (conn, mek, m, { args, reply }) => {
+  if (m.sender !== OWNER_JID) return reply("⚠️ Owner only.");
+  const action = args[0]?.toLowerCase();
+  if (action === "on") {
+    autoReactEnabled = true;
+    reply("✅ Auto React *Enabled*");
+  } else if (action === "off") {
+    autoReactEnabled = false;
+    reply("🛑 Auto React *Disabled*");
+  } else {
+    reply("⚙️ Use `.autoreact on` or `.autoreact off`");
+  }
 });
