@@ -11,7 +11,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 let autoSongIntervals = {};
 let playedSongs = {};
 let autoReactEnabled = true; // default ON
-const OWNER_JID = "947XXXXXXXX@s.whatsapp.net"; // <-- replace with your number
+const OWNER_JID = "94760264995@s.whatsapp.net"; // <-- replace with your number
 
 // ====== Sinhala Song Styles ======
 const styles = [
