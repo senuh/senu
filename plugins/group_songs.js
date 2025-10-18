@@ -145,7 +145,7 @@ cmd({
 
 // ⛔ .stop — Stop auto
 cmd({
-  pattern: "stop3",
+  pattern: "stop4",
   desc: "Stop automatic Sinhala slowed song sending",
   category: "music",
   filename: __filename,
