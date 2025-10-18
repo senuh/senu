@@ -10,45 +10,42 @@ const OWNER_JID = "94700000000@s.whatsapp.net"; // <-- ඔබේ WhatsApp JID �
 const playedSongs = {};
 const autoSongIntervals = {};
 
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
 async function downloadAndConvertAudio(videoUrl, outputPath) {
-  try {
-    const api = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${videoUrl}`;
-    const { data } = await axios.get(api);
-    const audioUrl = data?.result?.audio?.url;
-    if (!audioUrl) throw new Error("Audio URL not found");
+  const api = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${videoUrl}`;
+  const { data } = await axios.get(api);
+  const audioUrl = data?.result?.audio?.url;
+  if (!audioUrl) throw new Error("Audio link not found!");
 
-    const temp = path.join(__dirname, "temp.mp3");
-    const writer = fs.createWriteStream(temp);
-    const response = await axios({ url: audioUrl, method: "GET", responseType: "stream" });
-    response.data.pipe(writer);
+  const tempPath = path.join(__dirname, "temp.mp3");
+  const writer = fs.createWriteStream(tempPath);
+  const response = await axios({ url: audioUrl, method: "GET", responseType: "stream" });
+  response.data.pipe(writer);
+  await new Promise((res, rej) => writer.on("finish", res).on("error", rej));
 
-    await new Promise((res, rej) => writer.on("finish", res).on("error", rej));
-
-    return new Promise((res, rej) => {
-      ffmpeg(temp)
-        .audioCodec("libopus")
-        .format("opus")
-        .on("end", () => {
-          fs.unlinkSync(temp);
-          res(outputPath);
-        })
-        .on("error", rej)
-        .save(outputPath);
-    });
-  } catch (e) {
-    console.error("Download error:", e);
-    throw e;
-  }
+  return new Promise((res, rej) => {
+    ffmpeg(tempPath)
+      .audioCodec("libopus")
+      .format("opus")
+      .on("end", () => {
+        fs.unlinkSync(tempPath);
+        res(outputPath);
+      })
+      .on("error", rej)
+      .save(outputPath);
+  });
 }
 
-async function sendSong(conn, jid, query) {
-  const styles = ["sinhala slowed", "sinhala remix", "sinhala lofi", "sinhala reverb"];
+async function sendSinhalaSong(conn, jid, query) {
+  const styles = [
+    "sinhala slowed reverb song",
+    "sinhala lofi song",
+    "sinhala remix slowed song",
+    "sinhala vibe slowed song",
+  ];
   const keyword = query || styles[Math.floor(Math.random() * styles.length)];
 
   const r = await yt(keyword);
-  if (!r.videos.length) return conn.sendMessage(jid, { text: "😢 Song not found!" });
+  if (!r.videos.length) return conn.sendMessage(jid, { text: "😢 No songs found!" });
 
   const video = r.videos.find((v) => v.seconds <= 480);
   if (!video) return conn.sendMessage(jid, { text: "❌ No suitable video found!" });
@@ -56,28 +53,55 @@ async function sendSong(conn, jid, query) {
   const opusPath = path.join(__dirname, `${Date.now()}.opus`);
   await downloadAndConvertAudio(video.url, opusPath);
 
-  const sentMsg = await conn.sendMessage(jid, {
-    audio: fs.readFileSync(opusPath),
-    mimetype: "audio/ogg; codecs=opus",
-    ptt: true,
-  });
+  const caption = `🎶 *${video.title}*\n\n💆‍♂️ Mind Relaxing Sinhala Song\n🎧 Use headphones for best vibe\n⚡ Powered by ZANTA-XMD BOT`;
 
-  // 🩷 Add reaction buttons after voice note
+  // 1️⃣ Send thumbnail + details
   await conn.sendMessage(jid, {
-    text: `🎶 *${video.title}*\n\nඔයාට මේ සින්දුව කොහොමද? 🎧`,
-    footer: "⚡ Powered by ZANTA-XMD BOT",
+    image: { url: video.thumbnail },
+    caption,
+    footer: "🎵 Sinhala Vibe Menu",
     buttons: [
-      { buttonId: `.reactgood ${sentMsg.key.id} ${video.title}`, buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
-      { buttonId: `.reactbad ${sentMsg.key.id} ${video.title}`, buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
+      { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
+      { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+      { buttonId: ".clickhere", buttonText: { displayText: "🎛 Music Settings" }, type: 1 },
     ],
     headerType: 4,
   });
 
+  // 2️⃣ Send voice note (NO BUTTONS)
+  const voiceMsg = await conn.sendMessage(jid, {
+    audio: fs.readFileSync(opusPath),
+    mimetype: "audio/ogg; codecs=opus",
+    ptt: true,
+  });
   fs.unlinkSync(opusPath);
-  return video;
+
+  // 3️⃣ After 10 seconds → Send feedback buttons separately
+  setTimeout(async () => {
+    await conn.sendMessage(jid, {
+      text: `💬 ඔයාට මේ සින්දුව කොහොමද? 🎧`,
+      footer: "⚡ Powered by ZANTA-XMD BOT",
+      buttons: [
+        { buttonId: `.reactgood ${voiceMsg.key.id} ${video.title}`, buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
+        { buttonId: `.reactbad ${voiceMsg.key.id} ${video.title}`, buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  }, 10000);
 }
 
 //================ COMMANDS =================
+
+// Manual Sinhala Song
+cmd({
+  pattern: "song3",
+  desc: "Play Sinhala slowed song manually",
+  category: "music",
+}, async (conn, mek, m, { text, reply }) => {
+  if (!text) return reply("❗ Use like: .song3 song name");
+  reply(`🔍 Searching YouTube for *${text} slowed Sinhala song...* 🎧`);
+  await sendSinhalaSong(conn, m.chat, text);
+});
 
 // Auto Sinhala Mode
 cmd({
@@ -86,21 +110,10 @@ cmd({
   category: "music",
 }, async (conn, mek, m, { reply }) => {
   const jid = m.chat;
+  if (autoSongIntervals[jid]) return reply("🟡 Sinhala Auto Mode Already Active!");
+  reply("🎧 Sinhala Auto Mode Activated! Songs will play every 10 minutes.");
 
-  if (autoSongIntervals[jid]) {
-    return reply("🌀 Sinhala Auto Mode Already Active!");
-  }
-
-  reply("🎧 Sinhala Voice Auto Mode Activated! Songs will play every 10 minutes.");
-
-  const play = async () => {
-    const video = await sendSong(conn, jid);
-    if (video) {
-      if (!playedSongs[jid]) playedSongs[jid] = [];
-      playedSongs[jid].push(video.videoId);
-    }
-  };
-
+  const play = async () => await sendSinhalaSong(conn, jid);
   await play();
   autoSongIntervals[jid] = setInterval(play, 10 * 60 * 1000);
 });
@@ -108,38 +121,17 @@ cmd({
 // Stop Auto Mode
 cmd({
   pattern: "stop3",
-  desc: "Stop Sinhala auto voice mode",
+  desc: "Stop Sinhala auto mode",
   category: "music",
 }, async (conn, mek, m, { reply }) => {
   const jid = m.chat;
-  if (!autoSongIntervals[jid]) return reply("⚠️ Auto Mode Not Active!");
-
+  if (!autoSongIntervals[jid]) return reply("⚠️ Auto Mode Not Running.");
   clearInterval(autoSongIntervals[jid]);
   delete autoSongIntervals[jid];
   reply("🛑 Sinhala Voice Auto Mode Stopped.");
 });
 
-// Play Next Song
-cmd({
-  pattern: "nextsong",
-  desc: "Play next Sinhala song",
-  category: "music",
-}, async (conn, mek, m, { reply }) => {
-  await sendSong(conn, m.chat);
-  reply("⏭️ Playing Next Sinhala Song...");
-});
-
-// Manual Song
-cmd({
-  pattern: "song3",
-  desc: "Play Sinhala slowed song manually",
-  category: "music",
-}, async (conn, mek, m, { text, reply }) => {
-  if (!text) return reply("❗ Use like: .song3 song name");
-  await sendSong(conn, m.chat, text);
-});
-
-//================= REACTIONS (Works in Inbox + Groups) =================
+//================= FEEDBACK BUTTON HANDLERS =================
 cmd({
   pattern: "reactgood",
   desc: "React ❤️ and send feedback",
@@ -150,12 +142,11 @@ cmd({
   const senderNum = m.sender.split("@")[0];
   const user = m.pushName || senderNum;
   const chatName = m.isGroup ? m.chat : "Private Chat";
-  const ownerJid = OWNER_JID;
 
   try {
     await conn.sendMessage(m.chat, { react: { text: "❤️", key: { id: msgId, remoteJid: m.chat } } });
-    const msgText = `🩷 *Voice Feedback!*\n👤 ${user}\n📞 wa.me/${senderNum}\n💬 ❤️ Liked\n🎶 ${songName}\n📍 ${chatName}`;
-    await conn.sendMessage(ownerJid, { text: msgText });
+    const msgText = `🩷 *Song Feedback*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: ❤️ Liked\n🎶 Song: ${songName}\n📍 Chat: ${chatName}`;
+    await conn.sendMessage(OWNER_JID, { text: msgText });
     await reply("🩷 ඔබගේ අදහස Owner ට යවන ලදි ✅");
   } catch (e) {
     reply("⚠️ Reaction failed: " + e.message);
@@ -172,12 +163,11 @@ cmd({
   const senderNum = m.sender.split("@")[0];
   const user = m.pushName || senderNum;
   const chatName = m.isGroup ? m.chat : "Private Chat";
-  const ownerJid = OWNER_JID;
 
   try {
     await conn.sendMessage(m.chat, { react: { text: "💔", key: { id: msgId, remoteJid: m.chat } } });
-    const msgText = `💔 *Voice Feedback!*\n👤 ${user}\n📞 wa.me/${senderNum}\n💬 💔 Didn't Like\n🎶 ${songName}\n📍 ${chatName}`;
-    await conn.sendMessage(ownerJid, { text: msgText });
+    const msgText = `💔 *Song Feedback*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: 💔 Didn't Like\n🎶 Song: ${songName}\n📍 Chat: ${chatName}`;
+    await conn.sendMessage(OWNER_JID, { text: msgText });
     await reply("💔 ඔබගේ අදහස Owner ට යවන ලදි 😢");
   } catch (e) {
     reply("⚠️ Reaction failed: " + e.message);
