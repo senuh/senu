@@ -100,33 +100,28 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
   }
 }
 
-// 🎶 Main Command
+// 🎶 .sinhalavoice command
 cmd({
   pattern: "sinhalavoice",
-  desc: "Auto Sinhala slowed songs with button controls",
+  desc: "Auto Sinhala slowed songs with menu buttons",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   const targetJid = m.chat;
-  const isChannel = targetJid.includes('@newsletter');
 
-  if (autoSongInterval) return reply("🟡 Already running!");
+  if (autoSongInterval) return reply("🟡 Auto Sinhala mode already running!");
 
-  if (isChannel) {
-    await conn.sendMessage(targetJid, {
-      text: "🎧 *Auto Sinhala Songs started!* (Buttons disabled in channels)",
-    });
-  } else {
-    await conn.sendMessage(targetJid, {
-      text: "🎧 *Auto Sinhala Songs started!*",
-      footer: "🎵 Sinhala Song Controls",
-      buttons: [
-        { buttonId: 'next_song', buttonText: { displayText: '🎵 Next Song' }, type: 1 },
-        { buttonId: 'stop_auto', buttonText: { displayText: '⛔ Stop Auto' }, type: 1 },
-      ],
-      headerType: 4,
-    });
-  }
+  await conn.sendMessage(targetJid, {
+    text: `🎧 *Auto Sinhala Slowed Songs Activated!*  
+You'll get a new Sinhala slowed song every 20 minutes.  
+Use the menu below to control playback 👇`,
+    footer: "🎵 Sinhala Vibe Menu",
+    buttons: [
+      { buttonId: 'next_song', buttonText: { displayText: '🎵 Next Song' }, type: 1 },
+      { buttonId: 'stop_auto', buttonText: { displayText: '⛔ Stop Auto' }, type: 1 },
+    ],
+    headerType: 4,
+  });
 
   const sendRandom = async () => {
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
@@ -137,20 +132,20 @@ cmd({
   autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000);
 });
 
-// 🛑 Stop Command
+// 🛑 .stop3 command
 cmd({
   pattern: "stop3",
-  desc: "Stop Sinhala song auto mode",
+  desc: "Stop automatic Sinhala slowed songs",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  if (!autoSongInterval) return reply("⛔ Not running.");
+  if (!autoSongInterval) return reply("⛔ Auto mode not running.");
   clearInterval(autoSongInterval);
   autoSongInterval = null;
-  reply("🛑 Auto Sinhala songs stopped.");
+  reply("🛑 Auto Sinhala slowed songs stopped.");
 });
 
-// 🎵 Button Events — works with all Baileys versions
+// 🎵 Button handler — Works for Multi Device
 cmd({
   on: "message",
 }, async (conn, mek, m, { reply }) => {
@@ -158,18 +153,20 @@ cmd({
     const buttonId = m.message?.buttonsResponseMessage?.selectedButtonId;
     if (!buttonId) return;
 
+    console.log("Button pressed:", buttonId);
+
     if (buttonId === 'next_song') {
       const randomStyle = styles[Math.floor(Math.random() * styles.length)];
       await sendSinhalaSong(conn, m.chat, reply, randomStyle);
     }
 
     if (buttonId === 'stop_auto') {
-      if (!autoSongInterval) return reply("⚠️ Not running.");
+      if (!autoSongInterval) return reply("⚠️ Auto mode not running.");
       clearInterval(autoSongInterval);
       autoSongInterval = null;
-      reply("🛑 Auto Sinhala slowed songs stopped.");
+      reply("🛑 Auto Sinhala songs stopped.");
     }
-  } catch (e) {
-    console.error(e);
+  } catch (err) {
+    console.error("Button handler error:", err);
   }
 });
