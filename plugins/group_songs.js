@@ -8,7 +8,6 @@ const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 let autoSongInterval = null;
-let sentSongUrls = new Set();
 
 const styles = [
   "sinhala slowed reverb song",
@@ -59,35 +58,33 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 
     const caption = `*"${video.title}"*
 
-> *💆‍♂️ ᴍɪɴᴅ ʀᴇʟᴀxɪɴɢ ʙᴇꜱᴛ ꜱᴏɴɢ 💆❤‍🩹*
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-         00:00 ───●────────── ${video.timestamp}   
-❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍❍
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-> ❑ ᴜꜱᴇ ʜᴇᴀᴅᴘʜᴏɴᴇꜱ ꜰᴏʀ ʙᴇꜱᴛ ᴇxᴘᴇʀɪᴇɴᴄᴇ..🙇‍♂️🎧"🫀
-> ❑ ᴘᴏᴡᴇʀᴇᴅ ʙʏ ᴢᴀɴᴛᴀ-xᴍᴅ ᴡʜᴀᴛꜱᴀᴘᴘ ʙᴏᴛ
-> ❑ ᴢᴀɴᴛᴀ-xᴍᴅ ᴏᴡɴᴇʀ - +94760264995
+> 💆‍♂️ ᴍɪɴᴅ ʀᴇʟᴀxɪɴɢ ʙᴇꜱᴛ ꜱᴏɴɢ 💆❤‍🩹
+▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+00:00 ───●────────── ${video.timestamp}
+▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+> 🎧 Use Headphones for best experience!
+> ⚙️ Powered by Zanta-XMD Bot`;
 
-                               ♡          ⎙          ➦ 
-                            ʳᵉᵃᶜᵗ       ˢᵃᵛᵉ       ˢʰᵃʳᵉ`;
-
+    // Send song poster first
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
     });
 
-    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
+    // 🔥 Use a reliable API to get direct mp3 link
+    const apiUrl = `https://api-v2.ytjar.info/api/download?url=${encodeURIComponent(video.url)}&format=mp3`;
     const { data } = await axios.get(apiUrl);
 
-    if (!data.status || !data.result?.download)
+    if (!data.status || !data.data?.audio?.url)
       return reply("⚠️ Couldn't fetch mp3 link.");
+
+    const downloadUrl = data.data.audio.url;
 
     const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
     const opusPath = path.join(__dirname, `${Date.now()}.opus`);
 
     // Download MP3
-    await downloadFile(data.result.download, mp3Path);
+    await downloadFile(downloadUrl, mp3Path);
 
     // Convert to Opus
     await convertToOpus(mp3Path, opusPath);
@@ -99,17 +96,10 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
       ptt: true,
     });
 
-    // Send as MP3 file
+    // Send as MP3 file 📁
     await conn.sendMessage(targetJid, {
       document: fs.readFileSync(mp3Path),
-      mimetype: 'audio/mp3',
-      fileName: `${video.title}.mp3`,
-    });
-
-    // Send as a Document
-    await conn.sendMessage(targetJid, {
-      document: fs.readFileSync(mp3Path),
-      mimetype: 'audio/mp3',
+      mimetype: 'audio/mpeg',
       fileName: `${video.title}.mp3`,
     });
 
@@ -123,7 +113,7 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
   }
 }
 
-// 🎶 .voice1 — auto every 20 min
+// 🎶 .sinhalavoice — auto every 20 min
 cmd({
   pattern: "sinhalavoice",
   desc: "Auto Sinhala slowed songs as voice note every 20 minutes",
@@ -143,9 +133,9 @@ cmd({
   autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000);
 });
 
-// ⛔ .stop — Stop auto
+// ⛔ .stop3 — Stop auto
 cmd({
-  pattern: "stop4",
+  pattern: "stop3",
   desc: "Stop automatic Sinhala slowed song sending",
   category: "music",
   filename: __filename,
