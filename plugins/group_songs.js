@@ -3,11 +3,12 @@ const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
 const yts = require('yt-search');
+const ytdl = require('@distube/ytdl-core');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// Sinhala song styles
+// Sinhala slowed song styles
 const styles = [
   "sinhala slowed reverb song",
   "sinhala love slowed song",
@@ -17,17 +18,7 @@ const styles = [
   "sinhala mashup slowed reverb",
 ];
 
-// Helper functions
-async function downloadFile(url, outputPath) {
-  const writer = fs.createWriteStream(outputPath);
-  const response = await axios.get(url, { responseType: 'stream' });
-  response.data.pipe(writer);
-  return new Promise((resolve, reject) => {
-    writer.on('finish', resolve);
-    writer.on('error', reject);
-  });
-}
-
+// 🔧 Helper — convert to Opus
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -40,50 +31,83 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// Send Sinhala slowed song info (with Follow button)
-async function sendSinhalaSong(conn, targetJid, reply, query) {
+// 🎵 Send Sinhala slowed song (voice note)
+async function sendSinhalaSong(conn, chatId, reply, query) {
   try {
     const search = await yts(query);
-    const v = search.videos[0];
-    if (!v) return reply("😢 ඒ නමින් slowed song එකක් හොයාගන්න බැහැ!");
+    if (!search.videos.length) return reply("😢 ඒ නමින් slowed song එකක් හොයාගන්න බැහැ!");
 
-    await conn.sendMessage(targetJid, {
-      image: { url: v.thumbnail },
-      caption: `🎶 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> Mind relaxing Sinhala slowed reverb song 🎧`,
-      footer: "ZANTA-XMD BOT • Powered by Sadiya API",
-      buttons: [
-        { buttonId: `.nextsong`, buttonText: { displayText: "⏭️ Next Song" }, type: 1 },
-        { buttonId: `.owner2`, buttonText: { displayText: "👑 Owner" }, type: 1 },
-        { buttonId: `.followchannel`, buttonText: { displayText: "📢 Follow Us" }, type: 1 },
-      ],
-      headerType: 4,
+    const v = search.videos[Math.floor(Math.random() * Math.min(5, search.videos.length))];
+    const infoMsg = `🎶 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> Mind relaxing Sinhala slowed reverb song 🎧`;
+
+    await conn.sendMessage(chatId, { image: { url: v.thumbnail }, caption: infoMsg });
+
+    // Paths
+    const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
+    const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
+
+    // 🌀 Download YouTube audio
+    const stream = ytdl(v.url, { filter: 'audioonly', quality: 'highestaudio' });
+    await new Promise((resolve, reject) => {
+      const file = fs.createWriteStream(tmpMp4);
+      stream.pipe(file);
+      file.on('finish', resolve);
+      file.on('error', reject);
     });
+
+    await reply("🎧 Voice note එක සකස් වෙමින් පවතී...");
+
+    // 🎛 Convert to Opus
+    await convertToOpus(tmpMp4, tmpOpus);
+
+    // 🎤 Send as voice note
+    await conn.sendMessage(chatId, {
+      audio: fs.readFileSync(tmpOpus),
+      mimetype: 'audio/ogg; codecs=opus',
+      ptt: true, // make it a voice note
+    });
+
+    // 🧹 Clean temp files
+    fs.unlinkSync(tmpMp4);
+    fs.unlinkSync(tmpOpus);
   } catch (err) {
     console.error(err);
-    reply("⚠️ Error loading Sinhala slowed song info!");
+    reply("⚠️ Song එක play වෙද්දි error එකක් ඇති!");
   }
 }
 
-// 🎵 .song command — ask user for song name
+// 🎵 .song command
 cmd({
   pattern: "song",
   desc: "Ask user for Sinhala slowed song name",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply, from }) => {
-  await reply("🎵 කරුණාකර සිංදුවේ නම එකක් type කරන්න (උදා: *Pahasara*)");
+  await reply("🎵 කරුණාකර සිංදුවේ නම type කරන්න (උදා: *Pahasara*)");
 
-  conn.once('message', async (msg) => {
-    if (!msg.message) return;
-    const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
-    if (!text) return;
+  const handler = async (msg) => {
+    try {
+      const sender = mek.key.participant || mek.key.remoteJid;
+      if (!msg.key.fromMe && msg.key.remoteJid === from && msg.key.participant === sender) {
+        const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
+        if (!text) return;
 
-    await reply("🎧 Song එක load වෙමින් පවතී...");
-    await sendSinhalaSong(conn, from, reply, text + " slowed reverb sinhala song");
-  });
+        await reply("🎧 Song එක load වෙමින් පවතී...");
+        await sendSinhalaSong(conn, from, reply, text + " slowed reverb sinhala song");
+
+        conn.off('messages.upsert', handler);
+      }
+    } catch (err) {
+      console.error(err);
+      reply("⚠️ Error while loading song!");
+      conn.off('messages.upsert', handler);
+    }
+  };
+
+  conn.on('messages.upsert', handler);
 });
 
-// ⏭️ Next song
+// ⏭️ .nextsong
 cmd({
   pattern: "nextsong",
   desc: "Play another Sinhala slowed song",
@@ -95,37 +119,28 @@ cmd({
   await sendSinhalaSong(conn, m.chat, reply, randomStyle);
 });
 
-// 👑 Owner2 command
+// 👑 .owner2
 cmd({
   pattern: "owner2",
   desc: "Send bot owner contact",
   category: "info",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  try {
-    const vcard = `
+  const vcard = `
 BEGIN:VCARD
 VERSION:3.0
 FN:👑 Pahasara Bot Owner
 ORG:ZANTA-XMD BOT;
 TEL;type=CELL;type=VOICE;waid=94760264995:+94 76 026 4995
-END:VCARD
-    `.trim();
+END:VCARD`.trim();
 
-    await conn.sendMessage(m.chat, {
-      contacts: {
-        displayName: "👑 Pahasara Bot Owner",
-        contacts: [{ vcard }],
-      },
-    });
-    await reply("👑 Owner contact shared!");
-  } catch (err) {
-    console.error(err);
-    reply("⚠️ Error sending owner contact!");
-  }
+  await conn.sendMessage(m.chat, {
+    contacts: { displayName: "👑 Pahasara Bot Owner", contacts: [{ vcard }] },
+  });
+  await reply("👑 Owner contact shared!");
 });
 
-// 📢 Follow Channel command
+// 📢 .followchannel
 cmd({
   pattern: "followchannel",
   desc: "Send WhatsApp Channel link",
