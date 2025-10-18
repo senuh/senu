@@ -7,19 +7,6 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-let sentSongUrls = new Set();
-
-const styles = [
-  "sinhala slowed reverb song",
-  "sinhala love slowed song",
-  "sinhala vibe slowed song",
-  "sinhala sad slowed song",
-  "sinhala teledrama slowed song",
-  "sinhala 2024 slowed reverb song",
-  "sinhala mashup slowed reverb",
-  "sinhala boot slowed song",
-];
-
 // 🧩 Download file safely
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
@@ -68,9 +55,8 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
       caption,
       footer: "🎶 Choose your action below 👇",
       templateButtons: [
-        { index: 1, quickReplyButton: { displayText: "🎙 Voice Note", id: `.songvoice ${query}` }},
-        { index: 2, quickReplyButton: { displayText: "💾 Download MP3", id: `.songmp3 ${query}` }},
-        { index: 3, quickReplyButton: { displayText: "🔁 Next Song", id: `.song ${styles[Math.floor(Math.random() * styles.length)]}` }}
+        { index: 1, quickReplyButton: { displayText: "🎙 Song Voice", id: `.songvoice ${query}` }},
+        { index: 2, quickReplyButton: { displayText: "💾 Song MP3", id: `.songmp3 ${query}` }}
       ]
     });
 
@@ -108,10 +94,10 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
   }
 }
 
-// 🎵 .song — Main Command (Welcome UI)
+// 🎵 .song — Welcome UI (Buttons Only)
 cmd({
   pattern: "song4",
-  desc: "Sinhala slowed songs menu with buttons",
+  desc: "Sinhala slowed songs with Voice & MP3 buttons",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { text }) => {
@@ -120,13 +106,12 @@ cmd({
       image: { url: "https://i.ibb.co/SR7HX7m/musicbot.jpg" },
       caption: `✨ *Welcome to Sinhala Slowed Song Downloader!* ✨
 
-🎶 Relax, chill, and enjoy Sinhala vibes 💫  
-Choose your mood below 👇`,
+🎶 Relax and enjoy Sinhala slowed vibes 💫  
+Select your preferred mode below 👇`,
       footer: "Zanta-XMD Bot 🎧",
       templateButtons: [
-        { index: 1, quickReplyButton: { displayText: "🎵 Random Song", id: ".song sinhala slowed reverb song" }},
-        { index: 2, quickReplyButton: { displayText: "💞 Love Song", id: ".song sinhala love slowed song" }},
-        { index: 3, quickReplyButton: { displayText: "😢 Sad Song", id: ".song sinhala sad slowed song" }}
+        { index: 1, quickReplyButton: { displayText: "🎙 Song Voice", id: ".songvoice sinhala slowed reverb song" }},
+        { index: 2, quickReplyButton: { displayText: "💾 Song MP3", id: ".songmp3 sinhala slowed reverb song" }}
       ]
     });
     return;
