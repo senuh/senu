@@ -7,7 +7,7 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// 🎶 Sinhala slowed song styles
+// 🔊 Sinhala slowed styles
 const styles = [
   "sinhala slowed reverb song",
   "sinhala love slowed song",
@@ -19,7 +19,7 @@ const styles = [
   "sinhala boot slowed song",
 ];
 
-// 🧩 Download helper
+// 🔹 Download helper
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -30,7 +30,7 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// 🧩 Convert mp3 → opus
+// 🔹 Convert mp3 → opus
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -43,7 +43,7 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🎧 Send Sinhala slowed song (1 song)
+// 🔹 Send Sinhala song info + buttons
 async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
     const search = await yts(query);
@@ -53,27 +53,53 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
         const seconds = time.length === 3 ? time[0] * 3600 + time[1] * 60 + time[2] : time[0] * 60 + time[1];
         return seconds <= 480;
       })
-      .slice(0, 1); // only 1 song
+      .slice(0, 1);
 
     if (videos.length === 0) return reply("😢 No Sinhala slowed songs found.");
 
     const v = videos[0];
 
-    // 🖼️ Send video info card with buttons
     await conn.sendMessage(targetJid, {
       image: { url: v.thumbnail },
       caption: `🎵 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> 💆‍♂️ Mind relaxing Sinhala slowed song 🎧\n\n🎧 Use headphones for best experience.`,
       footer: "ZANTA-XMD BOT • Powered by Sadiya API",
       buttons: [
-        { buttonId: `play_${v.url}`, buttonText: { displayText: "▶️ Play Song" }, type: 1 },
-        { buttonId: "next_song", buttonText: { displayText: "⏭️ Next Song" }, type: 1 },
-        { buttonId: "owner_contact", buttonText: { displayText: { displayText: "👑 Owner" } }, type: 1 },
+        { buttonId: `.play ${v.url}`, buttonText: { displayText: "▶️ Play Song" }, type: 1 },
+        { buttonId: `.nextsong`, buttonText: { displayText: "⏭️ Next Song" }, type: 1 },
+        { buttonId: `.owner`, buttonText: { displayText: "👑 Owner" }, type: 1 },
       ],
       headerType: 4,
     });
 
-    // 🎙️ Download & send as voice note
-    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(v.url)}&format=mp3&apikey=sadiya`;
+  } catch (err) {
+    console.error("Send error:", err);
+    reply("😭 Something went wrong while sending Sinhala song info.");
+  }
+}
+
+// 🎧 Main song command — default: pahasara
+cmd({
+  pattern: "song",
+  desc: "Search Sinhala slowed song manually",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply, args }) => {
+  const query = args.join(" ") || "pahasara slowed reverb sinhala song";
+  await sendSinhalaSong(conn, m.chat, reply, query);
+});
+
+// ▶️ Play song
+cmd({
+  pattern: "play",
+  desc: "Play Sinhala song from YouTube",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply, args }) => {
+  try {
+    const url = args[0];
+    if (!url) return reply("❌ Please provide a YouTube link!");
+
+    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
 
     if (!data.status || !data.result?.download)
@@ -85,70 +111,46 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
     await downloadFile(data.result.download, mp3Path);
     await convertToOpus(mp3Path, opusPath);
 
-    // 🎤 Send voice note (opus)
-    await conn.sendMessage(targetJid, {
+    await conn.sendMessage(m.chat, {
       audio: fs.readFileSync(opusPath),
       mimetype: 'audio/ogg; codecs=opus',
       ptt: true,
     });
 
-    // 💾 Send mp3 document
-    await conn.sendMessage(targetJid, {
+    await conn.sendMessage(m.chat, {
       document: fs.readFileSync(mp3Path),
       mimetype: 'audio/mp3',
-      fileName: `${v.title}.mp3`,
+      fileName: "Sinhala_Slowed_Song.mp3",
     });
 
     fs.unlinkSync(mp3Path);
     fs.unlinkSync(opusPath);
 
-  } catch (err) {
-    console.error("Send error:", err);
-    reply("😭 Something went wrong while sending Sinhala song.");
+  } catch (e) {
+    console.error(e);
+    reply("💥 Error while downloading or sending the song!");
   }
-}
+});
 
-// 🎵 Manual Sinhala slowed song search command
+// ⏭️ Next song
 cmd({
-  pattern: "song",
-  desc: "Search & play Sinhala slowed song manually",
+  pattern: "nextsong",
+  desc: "Get another random Sinhala slowed song",
   category: "music",
   filename: __filename,
-}, async (conn, mek, m, { reply, args }) => {
-  const query = args.join(" ") || styles[Math.floor(Math.random() * styles.length)];
-  await sendSinhalaSong(conn, m.chat, reply, query);
+}, async (conn, mek, m, { reply }) => {
+  const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+  await reply("💫 Loading another Sinhala slowed song...");
+  await sendSinhalaSong(conn, m.chat, reply, randomStyle);
 });
 
 // 👑 Owner contact
 cmd({
-  pattern: "owner_contact",
-  desc: "Sends owner contact info",
+  pattern: "owner",
+  desc: "Send bot owner's contact",
   category: "info",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   await conn.sendContact(m.chat, [{ name: "👑 Bot Owner", number: "94760264995" }]);
   reply("👑 Here’s the owner’s contact!");
-});
-
-// ⏭️ Next Song button
-cmd({
-  pattern: "next_song",
-  desc: "Play another random Sinhala slowed song",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-
-  const messages = [
-    "💫 නව සංගීත vibe එක load වෙමින්...",
-    "🌊 Melody එකේ ලෝකය වෙත පිවිසෙමින්...",
-    "🎧 හදවත සන්සුන් කරවන Sinhala slowed song එක loading..."
-  ];
-
-  for (const msg of messages) {
-    await reply(msg);
-    await new Promise(res => setTimeout(res, 1500));
-  }
-
-  await sendSinhalaSong(conn, m.chat, reply, randomStyle);
 });
