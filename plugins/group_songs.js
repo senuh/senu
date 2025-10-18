@@ -127,7 +127,7 @@ Use the menu below to control playback 👇`,
   };
 
   await sendRandom();
-  autoSongInterval = setInterval(sendRandom, 1 * 60 * 1000);
+  autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000); // every 20 minutes
 });
 
 // Stop command (manual)
@@ -143,7 +143,7 @@ cmd({
   reply("🛑 Auto Sinhala slowed songs stopped.");
 });
 
-// ---------------- Button Listener (MD compatible) ----------------
+// ---------------- Button Listener ----------------
 cmd({
   on: "ready",
 }, async (conn) => {
@@ -157,14 +157,18 @@ cmd({
 
       console.log("🎛️ Button clicked:", buttonId);
 
+      // ✅ Instant feedback reply
       if (buttonId === "next_song") {
+        await conn.sendMessage(chatId, { text: "✅ Next Sinhala song loading..." });
         const randomStyle = styles[Math.floor(Math.random() * styles.length)];
         await sendSinhalaSong(conn, chatId, (text) => conn.sendMessage(chatId, { text }), randomStyle);
+
       } else if (buttonId === "stop_auto") {
+        await conn.sendMessage(chatId, { text: "🛑 Stopping auto Sinhala songs..." });
         if (autoSongInterval) {
           clearInterval(autoSongInterval);
           autoSongInterval = null;
-          await conn.sendMessage(chatId, { text: "🛑 Auto Sinhala slowed songs stopped." });
+          await conn.sendMessage(chatId, { text: "✅ Auto Sinhala slowed songs stopped." });
         } else {
           await conn.sendMessage(chatId, { text: "⚠️ Auto mode not running." });
         }
