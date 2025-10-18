@@ -127,7 +127,7 @@ Use the menu below to control playback 👇`,
   };
 
   await sendRandom();
-  autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000); // every 20 minutes
+  autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000);
 });
 
 // Stop command (manual)
@@ -143,38 +143,34 @@ cmd({
   reply("🛑 Auto Sinhala slowed songs stopped.");
 });
 
-// ---------------- Button Listener ----------------
+// ---------------- Button Listener (Fixed) ----------------
 cmd({
-  on: "ready",
-}, async (conn) => {
-  conn.ev.on("messages.upsert", async (msgUpdate) => {
-    try {
-      const m = msgUpdate.messages?.[0];
-      if (!m?.message?.buttonsResponseMessage) return;
+  on: "message",
+}, async (conn, m) => {
+  try {
+    if (!m?.message?.buttonsResponseMessage) return;
 
-      const buttonId = m.message.buttonsResponseMessage.selectedButtonId;
-      const chatId = m.key.remoteJid;
+    const buttonId = m.message.buttonsResponseMessage.selectedButtonId;
+    const chatId = m.key.remoteJid;
 
-      console.log("🎛️ Button clicked:", buttonId);
+    console.log("🎛️ Button clicked:", buttonId);
 
-      // ✅ Instant feedback reply
-      if (buttonId === "next_song") {
-        await conn.sendMessage(chatId, { text: "✅ Next Sinhala song loading..." });
-        const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-        await sendSinhalaSong(conn, chatId, (text) => conn.sendMessage(chatId, { text }), randomStyle);
+    if (buttonId === "next_song") {
+      await conn.sendMessage(chatId, { text: "✅ Next Sinhala song loading..." });
+      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+      await sendSinhalaSong(conn, chatId, (text) => conn.sendMessage(chatId, { text }), randomStyle);
 
-      } else if (buttonId === "stop_auto") {
-        await conn.sendMessage(chatId, { text: "🛑 Stopping auto Sinhala songs..." });
-        if (autoSongInterval) {
-          clearInterval(autoSongInterval);
-          autoSongInterval = null;
-          await conn.sendMessage(chatId, { text: "✅ Auto Sinhala slowed songs stopped." });
-        } else {
-          await conn.sendMessage(chatId, { text: "⚠️ Auto mode not running." });
-        }
+    } else if (buttonId === "stop_auto") {
+      await conn.sendMessage(chatId, { text: "🛑 Stopping auto Sinhala songs..." });
+      if (autoSongInterval) {
+        clearInterval(autoSongInterval);
+        autoSongInterval = null;
+        await conn.sendMessage(chatId, { text: "✅ Auto Sinhala slowed songs stopped." });
+      } else {
+        await conn.sendMessage(chatId, { text: "⚠️ Auto mode not running." });
       }
-    } catch (err) {
-      console.error("Button event error:", err);
     }
-  });
+  } catch (err) {
+    console.error("Button event error:", err);
+  }
 });
