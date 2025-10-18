@@ -2,7 +2,7 @@ const { cmd } = require('../lib/command')
 const config = require('../settings')
 
 cmd({
-    pattern: "settings",
+    pattern: "settings2",
     react: "⚙️",
     desc: "Display Bot Settings Menu (Button List)",
     category: "main",
