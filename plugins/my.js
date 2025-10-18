@@ -7,7 +7,7 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// 🧩 Download file safely
+// ✅ Safe file download
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -18,7 +18,7 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// 🧩 Convert mp3 → opus (voice note)
+// ✅ Convert mp3 → opus (voice note)
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -36,7 +36,9 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
   try {
     const search = await yts(query);
     const video = search.videos.find(v => {
-      const seconds = v.timestamp ? v.timestamp.split(':').reduce((a,b)=>a*60+ +b,0) : 0;
+      const seconds = v.timestamp
+        ? v.timestamp.split(':').reduce((a, b) => a * 60 + +b, 0)
+        : 0;
       return seconds <= 480;
     });
     if (!video) return reply("😭 No suitable song found.");
@@ -53,27 +55,34 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
-      footer: "🎶 Choose your action below 👇",
-      templateButtons: [
-        { index: 1, quickReplyButton: { displayText: "🎙 Song Voice", id: `.songvoice ${query}` }},
-        { index: 2, quickReplyButton: { displayText: "💾 Song MP3", id: `.songmp3 ${query}` }}
-      ]
+      footer: "🎶 Choose what you want 👇",
+      buttons: [
+        { buttonId: `.songvoice ${query}`, buttonText: { displayText: "🎙 Song Voice" }, type: 1 },
+        { buttonId: `.songmp3 ${query}`, buttonText: { displayText: "💾 Song MP3" }, type: 1 }
+      ],
+      headerType: 4
     });
 
-    // Voice / MP3 download
+    // 🎧 If user pressed button (asVoice / asMp3 true)
     if (asVoice || asMp3) {
       const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
       const { data } = await axios.get(apiUrl);
+
       if (!data.status || !data.result?.download)
-        return reply("⚠️ Couldn't fetch mp3 link.");
+        return reply("⚠️ Couldn't fetch MP3 link.");
 
       const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
       const opusPath = path.join(__dirname, `${Date.now()}.opus`);
+
       try {
         await downloadFile(data.result.download, mp3Path);
 
         if (asMp3) {
-          await conn.sendMessage(targetJid, { audio: fs.readFileSync(mp3Path), mimetype: 'audio/mpeg' });
+          await conn.sendMessage(targetJid, {
+            audio: fs.readFileSync(mp3Path),
+            mimetype: 'audio/mpeg',
+            caption: `🎵 *${video.title}*`
+          });
         } else if (asVoice) {
           await convertToOpus(mp3Path, opusPath);
           await conn.sendMessage(targetJid, {
@@ -87,17 +96,16 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
         if (fs.existsSync(opusPath)) fs.unlinkSync(opusPath);
       }
     }
-
   } catch (err) {
     console.error("Send error:", err);
     reply("😭 Something went wrong while sending the song.");
   }
 }
 
-// 🎵 .song — Welcome UI (Buttons Only)
+// 🎵 .song4 — Main Command (Welcome UI)
 cmd({
   pattern: "song4",
-  desc: "Sinhala slowed songs with Voice & MP3 buttons",
+  desc: "Sinhala slowed songs downloader with Voice & MP3 buttons",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { text }) => {
@@ -107,17 +115,19 @@ cmd({
       caption: `✨ *Welcome to Sinhala Slowed Song Downloader!* ✨
 
 🎶 Relax and enjoy Sinhala slowed vibes 💫  
-Select your preferred mode below 👇`,
+Select what you want below 👇`,
       footer: "Zanta-XMD Bot 🎧",
-      templateButtons: [
-        { index: 1, quickReplyButton: { displayText: "🎙 Song Voice", id: ".songvoice sinhala slowed reverb song" }},
-        { index: 2, quickReplyButton: { displayText: "💾 Song MP3", id: ".songmp3 sinhala slowed reverb song" }}
-      ]
+      buttons: [
+        { buttonId: ".songvoice sinhala slowed reverb song", buttonText: { displayText: "🎙 Song Voice" }, type: 1 },
+        { buttonId: ".songmp3 sinhala slowed reverb song", buttonText: { displayText: "💾 Song MP3" }, type: 1 }
+      ],
+      headerType: 4
     });
     return;
   }
 
-  await sendSinhalaSong(conn, m.chat, (msg) => conn.sendMessage(m.chat, { text: msg }), text);
+  await sendSinhalaSong(conn, m.chat, (msg) =>
+    conn.sendMessage(m.chat, { text: msg }), text);
 });
 
 // 🎙 .songvoice — Send Voice Note
