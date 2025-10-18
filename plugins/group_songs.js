@@ -7,8 +7,6 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-let autoSongInterval = null;
-
 // 🎶 Sinhala slowed song styles
 const styles = [
   "sinhala slowed reverb song",
@@ -45,7 +43,7 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🎧 Main function — Send ONE Sinhala slowed song
+// 🎧 Send Sinhala slowed song (1 song)
 async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
     const search = await yts(query);
@@ -55,21 +53,21 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
         const seconds = time.length === 3 ? time[0] * 3600 + time[1] * 60 + time[2] : time[0] * 60 + time[1];
         return seconds <= 480;
       })
-      .slice(0, 1); // only 1 song now 👈
+      .slice(0, 1); // only 1 song
 
     if (videos.length === 0) return reply("😢 No Sinhala slowed songs found.");
 
     const v = videos[0];
 
-    // 🖼️ Send the video info card
+    // 🖼️ Send video info card with buttons
     await conn.sendMessage(targetJid, {
       image: { url: v.thumbnail },
       caption: `🎵 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> 💆‍♂️ Mind relaxing Sinhala slowed song 🎧\n\n🎧 Use headphones for best experience.`,
       footer: "ZANTA-XMD BOT • Powered by Sadiya API",
       buttons: [
-        { buttonId: `play_${v.url}`, buttonText: { displayText: "▶️ Play" }, type: 1 },
+        { buttonId: `play_${v.url}`, buttonText: { displayText: "▶️ Play Song" }, type: 1 },
         { buttonId: "next_song", buttonText: { displayText: "⏭️ Next Song" }, type: 1 },
-        { buttonId: "owner_contact", buttonText: { displayText: "👑 Owner" }, type: 1 },
+        { buttonId: "owner_contact", buttonText: { displayText: { displayText: "👑 Owner" } }, type: 1 },
       ],
       headerType: 4,
     });
@@ -110,40 +108,18 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
   }
 }
 
-// 🔁 Auto Sinhala song every 20 minutes
+// 🎵 Manual Sinhala slowed song search command
 cmd({
-  pattern: "sinhalavoice2",
-  desc: "Auto Sinhala slowed songs (1 song every 20 minutes)",
+  pattern: "song",
+  desc: "Search & play Sinhala slowed song manually",
   category: "music",
   filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  if (autoSongInterval) return reply("🟡 Sinhala auto mode already running!");
-  const targetJid = m.chat;
-  reply("✅ Sinhala slowed song auto mode started — every 20 minutes 🎶");
-
-  const sendRandom = async () => {
-    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-    await sendSinhalaSong(conn, targetJid, reply, randomStyle);
-  };
-
-  await sendRandom();
-  autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000);
+}, async (conn, mek, m, { reply, args }) => {
+  const query = args.join(" ") || styles[Math.floor(Math.random() * styles.length)];
+  await sendSinhalaSong(conn, m.chat, reply, query);
 });
 
-// ⛔ Stop auto mode
-cmd({
-  pattern: "stop5",
-  desc: "Stop Sinhala slowed auto mode",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  if (!autoSongInterval) return reply("⛔ Auto mode not running.");
-  clearInterval(autoSongInterval);
-  autoSongInterval = null;
-  reply("🛑 Sinhala slowed song auto mode stopped.");
-});
-
-// 👑 Owner contact button handler
+// 👑 Owner contact
 cmd({
   pattern: "owner_contact",
   desc: "Sends owner contact info",
@@ -154,27 +130,25 @@ cmd({
   reply("👑 Here’s the owner’s contact!");
 });
 
-// ⏭️ Next Song Button handler (with typing animation)
+// ⏭️ Next Song button
 cmd({
   pattern: "next_song",
-  desc: "Send a new random Sinhala slowed song immediately (with animation)",
+  desc: "Play another random Sinhala slowed song",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  const targetJid = m.chat;
   const randomStyle = styles[Math.floor(Math.random() * styles.length)];
 
-  // ⌛ Typing animation simulation
   const messages = [
-    "⏳ නව ගීතය සොයමින්...",
-    "🎶 සුන්දර Sinhala slowed beat එකක් සෙවියි...",
-    "🎧 සුළු මොහොතක් — නව vibe එකට connect වෙන්න 💫"
+    "💫 නව සංගීත vibe එක load වෙමින්...",
+    "🌊 Melody එකේ ලෝකය වෙත පිවිසෙමින්...",
+    "🎧 හදවත සන්සුන් කරවන Sinhala slowed song එක loading..."
   ];
 
   for (const msg of messages) {
     await reply(msg);
-    await new Promise(res => setTimeout(res, 1500)); // 1.5s delay per message
+    await new Promise(res => setTimeout(res, 1500));
   }
 
-  await sendSinhalaSong(conn, targetJid, reply, randomStyle);
+  await sendSinhalaSong(conn, m.chat, reply, randomStyle);
 });
