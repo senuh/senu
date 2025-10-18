@@ -1,154 +1,152 @@
 const { cmd } = require('../lib/command');
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 const yts = require('yt-search');
-const ytdl = require('@distube/ytdl-core');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// 🌀 Convert & Add Slowed + Reverb effects, output Opus (Voice note)
-async function makeVoiceNote(input, output) {
+let autoSongInterval = null;
+
+const styles = [
+  "sinhala slowed reverb song",
+  "sinhala love slowed song",
+  "sinhala vibe slowed song",
+  "sinhala sad slowed song",
+  "sinhala teledrama slowed song",
+  "sinhala 2024 slowed reverb song",
+  "sinhala mashup slowed reverb",
+  "sinhala boot slowed song",
+];
+
+// 🧩 Download file safely
+async function downloadFile(url, outputPath) {
+  const writer = fs.createWriteStream(outputPath);
+  const response = await axios.get(url, { responseType: 'stream' });
+  response.data.pipe(writer);
   return new Promise((resolve, reject) => {
-    ffmpeg(input)
-      .audioFilters([
-        'asetrate=44100*0.85',   // slowed
-        'atempo=1.1',            // adjust timing
-        'aecho=0.8:0.9:1000:0.3',// reverb
-        'volume=1.3'             // volume boost
-      ])
+    writer.on('finish', resolve);
+    writer.on('error', reject);
+  });
+}
+
+// 🧩 Convert mp3 → opus
+async function convertToOpus(inputPath, outputPath) {
+  return new Promise((resolve, reject) => {
+    ffmpeg(inputPath)
       .audioCodec('libopus')
       .audioBitrate('64k')
       .format('opus')
       .on('end', resolve)
       .on('error', reject)
-      .save(output);
+      .save(outputPath);
   });
 }
 
-// 🎧 Download + process song
-async function playSong(conn, from, reply, query) {
+// 🧠 Main function to send Sinhala song
+async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
     const search = await yts(query);
-    if (!search.videos.length) return reply("😢 ඒ නමින් slowed song එකක් හොයාගන්න බැහැ!");
-
-    const v = search.videos[0];
-    await reply(`🎧 *${v.title}* එක සකස් වෙමින් පවතී...`);
-
-    const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
-    const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
-
-    const stream = ytdl(v.url, { filter: 'audioonly', quality: 'highestaudio' });
-    await new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(tmpMp4);
-      stream.pipe(file);
-      file.on('finish', resolve);
-      file.on('error', reject);
+    const video = search.videos.find(v => {
+      const time = v.timestamp.split(':').map(Number);
+      const seconds = time.length === 3 ? time[0] * 3600 + time[1] * 60 + time[2] : time[0] * 60 + time[1];
+      return seconds <= 480;
     });
 
-    await makeVoiceNote(tmpMp4, tmpOpus);
+    if (!video) return reply("😭 No suitable song found.");
 
-    await conn.sendMessage(from, {
-      audio: fs.readFileSync(tmpOpus),
+    const caption = `*"${video.title}"*
+
+> 💆‍♂️ Mind Relaxing Best Song 💆❤‍🩹
+▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
+00:00 ───●────────── ${video.timestamp}
+▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
+> 🎧 Use headphones for best experience.
+> ⚡ Powered by ZANTA-XMD Bot`;
+
+    // Send image + button
+    await conn.sendMessage(targetJid, {
+      image: { url: video.thumbnail },
+      caption,
+      buttons: [
+        { buttonId: 'next_song', buttonText: { displayText: '🎵 Next Song' }, type: 1 },
+      ],
+      footer: 'ZANTA-XMD Sinhala Vibe Bot 💫',
+    });
+
+    // Fetch mp3 from API
+    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
+    const { data } = await axios.get(apiUrl);
+
+    if (!data.status || !data.result?.download)
+      return reply("⚠️ Couldn't fetch mp3 link.");
+
+    const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
+    const opusPath = path.join(__dirname, `${Date.now()}.opus`);
+
+    // Download MP3
+    await downloadFile(data.result.download, mp3Path);
+
+    // Convert to Opus
+    await convertToOpus(mp3Path, opusPath);
+
+    // Send voice note
+    await conn.sendMessage(targetJid, {
+      audio: fs.readFileSync(opusPath),
       mimetype: 'audio/ogg; codecs=opus',
-      ptt: true // ✅ Voice Note bubble style
+      ptt: true,
     });
 
-    fs.unlinkSync(tmpMp4);
-    fs.unlinkSync(tmpOpus);
+    // Clean temp
+    fs.unlinkSync(mp3Path);
+    fs.unlinkSync(opusPath);
+
   } catch (err) {
-    console.error(err);
-    reply("⚠️ Song එක play වෙද්දි error එකක් ඇති!");
+    console.error("Send error:", err);
+    reply("😭 Something went wrong while sending the song.");
   }
 }
 
-// 🔁 Send playlist (Sad ❤️ Love)
-async function sendPlaylist(conn, from, reply, mood) {
-  try {
-    const searchQuery = mood === 'sad' ? 'sinhala sad slowed reverb song' : 'sinhala love slowed reverb song';
-    const title = mood === 'sad' ? '😢 Sinhala Sad Vibe Playlist' : '❤️ Sinhala Love Vibe Playlist';
-    const footer = '🎧 ZANTA-XMD Slowed Player';
-
-    await reply(`${title} එක load වෙමින් පවතී...`);
-
-    const search = await yts(searchQuery);
-    const songs = search.videos.slice(0, 8);
-    if (!songs.length) return reply("😢 Playlist එක load වෙලා නැහැ!");
-
-    const buttons = songs.map((song, i) => ({
-      buttonId: `play_${mood}_${encodeURIComponent(song.title)}`,
-      buttonText: { displayText: `🎵 ${i + 1}. ${song.title.slice(0, 25)}...` },
-      type: 1
-    }));
-
-    buttons.push({
-      buttonId: mood === "sad" ? "switch_love" : "switch_sad",
-      buttonText: { displayText: mood === "sad" ? "❤️ Switch to Love Mode" : "😢 Switch to Sad Mode" },
-      type: 1
-    });
-
-    await conn.sendMessage(from, {
-      text: `${title}\n\n🎶 Mind-calming Sinhala slowed reverb songs.`,
-      footer,
-      buttons,
-      headerType: 1
-    });
-  } catch (err) {
-    console.error(err);
-    reply("⚠️ Playlist එක load වෙද්දි error එකක් ඇති!");
-  }
-}
-
-// 🎵 .playlist — start from Sad mode
+// 🎶 .sinhalavoice — auto Sinhala songs
 cmd({
-  pattern: "playlist",
-  desc: "Show Sinhala Sad/Love slowed playlist",
+  pattern: "sinhalavoice",
+  desc: "Auto Sinhala slowed songs every 20 minutes",
   category: "music",
-  filename: __filename
-}, async (conn, mek, m, { reply, from }) => {
-  await sendPlaylist(conn, from, reply, 'sad');
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  if (autoSongInterval) return reply("🟡 Already running!");
+  const targetJid = m.chat;
+  reply("✅ Auto Sinhala slowed songs started — every 20 minutes.");
+
+  const sendRandom = async () => {
+    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+    await sendSinhalaSong(conn, targetJid, reply, randomStyle);
+  };
+
+  await sendRandom();
+  autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000);
 });
 
-// 🎧 Handle buttons
+// ⛔ .stop3 — Stop auto
 cmd({
-  onButton: true
-}, async (conn, mek, m, { buttonId, reply, from }) => {
-  if (buttonId.startsWith('play_sad_')) {
-    const query = decodeURIComponent(buttonId.replace('play_sad_', ''));
-    await playSong(conn, from, reply, query + ' sinhala sad slowed reverb song');
-  }
-  if (buttonId.startsWith('play_love_')) {
-    const query = decodeURIComponent(buttonId.replace('play_love_', ''));
-    await playSong(conn, from, reply, query + ' sinhala love slowed reverb song');
-  }
-  if (buttonId === 'switch_love') {
-    await sendPlaylist(conn, from, reply, 'love');
-  }
-  if (buttonId === 'switch_sad') {
-    await sendPlaylist(conn, from, reply, 'sad');
-  }
+  pattern: "stop3",
+  desc: "Stop auto Sinhala slowed songs",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  if (!autoSongInterval) return reply("⛔ Auto mode is not running.");
+  clearInterval(autoSongInterval);
+  autoSongInterval = null;
+  reply("🛑 Auto Sinhala slowed songs stopped.");
 });
 
-// 🎶 .song — choose mood + voice note version
+// 🎵 Handle "Next Song" button
 cmd({
-  pattern: "song",
-  desc: "Play Sinhala slowed song (Sad ❤️ Love)",
-  category: "music",
-  filename: __filename
-}, async (conn, mek, m, { args, reply, from }) => {
-  const query = args.join(" ");
-  if (!query) return reply("🎵 කරුණාකර සිංදුවේ නම type කරන්න (උදා: *.song Pahasara*)");
-
-  const buttons = [
-    { buttonId: `play_sad_${encodeURIComponent(query)}`, buttonText: { displayText: "😢 Play Sad Version" }, type: 1 },
-    { buttonId: `play_love_${encodeURIComponent(query)}`, buttonText: { displayText: "❤️ Play Love Version" }, type: 1 },
-    { buttonId: "switch_love", buttonText: { displayText: "🔁 Open Playlist" }, type: 1 },
-  ];
-
-  await conn.sendMessage(from, {
-    text: `🎧 Sinhala Slowed Reverb Song Finder 🇱🇰\n\n🎶 *${query}*\nMood එක තෝරන්න 👇`,
-    footer: "ZANTA-XMD Dual Mood Player",
-    buttons,
-    headerType: 1
-  });
+  on: "button",
+}, async (conn, mek, m, { buttonId, reply }) => {
+  if (buttonId === "next_song") {
+    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+    await sendSinhalaSong(conn, m.chat, reply, randomStyle);
+  }
 });
