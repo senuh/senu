@@ -2,7 +2,7 @@
 // Full ZANTA-XMD compatible Sinhala Auto Song Bot
 // Features:
 // - .song (auto per-chat) / .sinhalavoice (private auto) / .groupsong (group auto)
-// - .song3 (manual search) / .nextsong / .stop3 / .feedback
+// - .song3 (manual search) / .nextsong / .stop3 / .feedback (enhanced with DP + buttons)
 // - Music Settings panel (.clickhere / .musicsettings)
 // - Send Mode options: Groups Only / Channels Only / Private Only / Both
 // - Auto-react ON/OFF
@@ -287,7 +287,8 @@ cmd({
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  return cmd._handlers && cmd._handlers; // no-op alias if system expects; actual .clickhere handles UI
+  // simply forward to clickhere handler — some frameworks call handlers differently
+  return cmd; // noop; main .clickhere will handle UI
 });
 
 //================= CHANGE INTERVAL (panel opens) =================
@@ -473,27 +474,7 @@ cmd({
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  // behave identical to sinhalavoice but named .song
-  return cmd({
-    pattern: "song-run-helper",
-    desc: "",
-    category: "music",
-    filename: __filename,
-  }, async (c, mk, mm, { reply: r }) => {}).callback && await (async () => {
-    // reuse sinhalavoice logic by invoking handler directly:
-  })().catch(()=>{}); // no-op - fallback to calling sinhalavoice below
-});
-
-// For simplicity call sinhalavoice's handler directly by duplicating minimal logic:
-cmd({
-  pattern: "song",
-  desc: "Alias for sinhalavoice (keeps compatibility)",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  // call sinhalavoice behavior
-  await cmd._run && cmd._run; // noop, frameworks vary
-  // We will run same code as sinhalavoice:
+  // call same behavior as sinhalavoice
   const jid = m.chat;
   const isGroup = m.isGroup || false;
   if (!isChatAllowedByMode(jid, isGroup)) {
@@ -644,7 +625,7 @@ cmd({
   }
 });
 
-//================= FEEDBACK SYSTEM =================
+//================= FEEDBACK SYSTEM (ENHANCED: DP + STYLED + BUTTONS) =================
 cmd({
   pattern: "feedback",
   desc: "Send song feedback to bot owner",
@@ -658,25 +639,57 @@ cmd({
   const groupName = m.isGroup ? m.chat : "Private Chat";
   const ownerJid = OWNER_JID;
 
-  let msgText;
+  let reactionText;
   if (type === "good") {
-    msgText = `🩷 *Feedback Alert!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Liked the song\n🎶 Song: ${songName}\n📍 Chat: ${groupName}`;
+    reactionText = "🩷 Liked the Song";
     await reply("🩷 ඔබගේ අදහස Owner ට යවන ලදි ✅");
   } else if (type === "bad") {
-    msgText = `💔 *Feedback Alert!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Didn't like the song\n🎶 Song: ${songName}\n📍 Chat: ${groupName}`;
+    reactionText = "💔 Didn't Like the Song";
     await reply("💔 ඔබගේ අදහස Owner ට යවන ලදි 😢");
   } else return reply("⚠️ වැරදි feedback command එකක්!");
 
+  // Try to get user's WhatsApp DP; fallback to a default image
+  let userDp;
   try {
-    await conn.sendMessage(ownerJid, { text: msgText });
-  } catch (err) {
-    console.error("Error sending feedback to owner:", err);
+    userDp = await conn.profilePictureUrl(m.sender, "image");
+  } catch (e) {
+    userDp = "https://telegra.ph/file/2b3f8e4e1ad31e1d26f5a.jpg";
   }
-});
 
-//================= END OF FILE =================
-// Notes:
-// - Save this file as sinhalasong-bot.js inside your ZANTA-XMD commands/plugins folder.
-// - Ensure axios, yts, fluent-ffmpeg, @ffmpeg-installer/ffmpeg are installed.
-// - Replace OWNER_JID with your WhatsApp ID.
-// - If your ZANTA-XMD has slightly different cmd() shape, adapt the handler registration accordingly.
+  // Compose styled caption (boxed)
+  const caption = `
+╔══🎧•°•💞 *FEEDBACK ALERT* 💞•°•🎧══╗
+
+👤 *User:* ${user}
+📞 *Contact:* wa.me/${senderNum}
+
+💬 *Reaction:* ${reactionText}
+
+🎶 *Track:*
+💿 ${songName}
+
+📍 *Chat Type:* ${groupName}
+
+╚═══🌸✨ Powered by ZANTA-XMD ✨🌸═══╝
+`;
+
+  // Send to owner with image (user DP) + buttons
+  try {
+    await conn.sendMessage(ownerJid, {
+      image: { url: userDp },
+      caption,
+      footer: "🎶 Feedback Control Panel",
+      buttons: [
+        { buttonId: `.replyuser ${senderNum}`, buttonText: { displayText: "💬 Reply to User" }, type: 1 },
+        { buttonId: `.thankyou ${senderNum}`, buttonText: { displayText: "🩷 Send Thanks" }, type: 1 },
+        { buttonId: `.blockuser ${senderNum}`, buttonText: { displayText: "🚫 Block User" }, type: 1 },
+        { buttonId: `.userinfo ${senderNum}`, buttonText: { displayText: "👤 View Profile" }, type: 1 },
+        { buttonId: `.banfeedback ${senderNum}`, buttonText: { displayText: "⛔ Ban Feedbacks" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  } catch (err) {
+    console.error("Error sending enhanced feedback to owner:", err);
+    // fallback: send plain text
+    try {
+      await conn.sendMessage(ownerJid, { text: `FEEDBACK: ${user} (${senderNum}) • ${reaction
