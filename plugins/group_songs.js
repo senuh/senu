@@ -644,162 +644,35 @@ cmd({
   }
 });
 
-//================= SINHALA SONG FEEDBACK + CONTROL SYSTEM =================
+//================= SINHALA SONG CONTROL SYSTEM =================
 // 🔰 Developed for ZANTA-XMD by ChatGPT (Final Pro Edition)
 
+const ownerJid = "94760264995@s.whatsapp.net"; // 👑 Fixed Owner Number
+const ownerNum = "94760264995";
+const ownerName = "👑 Sinhala Song Owner";
+
+//================= MAIN CONTROL PANEL =================
 cmd({
-  pattern: "feedback",
-  desc: "Send full feedback with buttons + owner notification + user DP",
+  pattern: "control",
+  desc: "Open Sinhala Song Control Panel",
   category: "music",
   filename: __filename,
-}, async (conn, mek, m, { args, reply }) => {
-  const type = args[0];
-  const songName = args.slice(1).join(" ") || "Unknown Song 🎶";
-  const senderJid = m.sender;
-  const senderNum = senderJid.split("@")[0];
-  const user = m.pushName || senderNum;
-  const groupName = m.isGroup ? "👥 Group Chat" : "💬 Private Chat";
-  const ownerJid = "94760264995@s.whatsapp.net"; // 👑 Fixed Owner Number
-  const mood = detectMood(songName) || "Normal";
-
-  if (!["good", "bad"].includes(type)) {
-    return conn.sendMessage(m.chat, {
-      text: "⚠️ වැරදි feedback command එකක්!\n\nUse:\n.feedback good [song name]\n.feedback bad [song name]",
-      footer: "🩷 Sinhala Song Feedback • ZANTA-XMD BOT",
-      buttons: [
-        { buttonId: ".feedback good", buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
-        { buttonId: ".feedback bad", buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
-      ],
-      headerType: 4,
-    });
-  }
-
-  const emoji = type === "good" ? "🩷" : "💔";
-  const reactionText = type === "good" ? "🩷 හොඳයි (Liked)" : "💔 හොඳ නෑ (Disliked)";
-  const moodText = type === "good" ? "ඔයාට මේ සින්දුවට කැමතියි 🥰" : "ඔයාට මේ සින්දුව හොඳ නෑ වගේ 😢";
-
-  // Try get user profile picture
-  let pfpUrl = null;
-  try {
-    if (typeof conn.profilePictureUrl === "function") {
-      pfpUrl = await conn.profilePictureUrl(senderJid, "image");
-    }
-  } catch {
-    pfpUrl = null;
-  }
-  const fallbackPfp = "https://i.ibb.co/sVKr0fj/defaultvibe.webp";
-
-  //================= OWNER NOTIFICATION (With DP + Buttons) =================
-  const ownerMsg = `${emoji} *New ${type === "good" ? "Positive" : "Negative"} Feedback!*\n\n👤 *User:* ${user}\n📞 *Number:* wa.me/${senderNum}\n🎶 *Song:* ${songName}\n🌀 *Mood:* ${mood.toUpperCase()}\n💬 *Reaction:* ${reactionText}\n📍 *Chat:* ${groupName}`;
-
-  const ownerButtons = [
-    { buttonId: `.replyuser ${senderNum}`, buttonText: { displayText: "💬 Reply to User" }, type: 1 },
-    { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 View Details" }, type: 1 },
-    { buttonId: `.contact user ${senderNum}`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
-    { buttonId: `.blockuser ${senderNum}`, buttonText: { displayText: "🚫 Block User" }, type: 1 },
-  ];
-
-  await conn.sendMessage(ownerJid, {
-    image: { url: pfpUrl || fallbackPfp },
-    caption: ownerMsg,
-    footer: "📩 Sinhala Song Feedback • Owner Alert",
-    buttons: ownerButtons,
-    headerType: 4,
-  });
-
-  //================= USER CONFIRMATION PANEL =================
-  await conn.sendMessage(m.chat, {
-    text: `${emoji} *ඔයාගේ අදහස Owner ට යවන ලදි!*\n${moodText}\n\nඔයාගේ විස්තර බලන්න හෝ වෙනත් ක්‍රියාකාරකම් තෝරන්න 👇`,
-    footer: `${emoji} Sinhala Song Feedback • ZANTA-XMD BOT`,
-    buttons: [
-      { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 බලන්න - විස්තර" }, type: 1 },
-      { buttonId: `.contact owner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
-      { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
-      { buttonId: `.stop3`, buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
-    ],
-    headerType: 4,
-  });
-});
-
-
-//================= VIEW DETAILS =================
-cmd({
-  pattern: "viewdetails",
-  desc: "View user feedback details (button mode)",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { args }) => {
-  const song = decodeURIComponent(args[0] || "Unknown Song 🎶");
-  const type = args[1] || "unknown";
+}, async (conn, mek, m, { reply }) => {
   const senderNum = m.sender.split("@")[0];
-  const user = m.pushName || senderNum;
-  const mood = detectMood(song);
-  const emoji = type === "good" ? "🩷" : "💔";
-
-  const info = `${emoji} *Feedback Details*\n\n👤 *User:* ${user}\n📞 *Number:* wa.me/${senderNum}\n🎶 *Song:* ${song}\n🌀 *Mood:* ${mood.toUpperCase()}\n💬 *Reaction:* ${type === "good" ? "🩷 හොඳයි" : "💔 හොඳ නෑ"}`;
-
-  await conn.sendMessage(m.chat, {
-    text: info,
-    footer: `${emoji} Sinhala Song Feedback • ZANTA-XMD BOT`,
-    buttons: [
-      { buttonId: `.feedback good ${encodeURIComponent(song)}`, buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
-      { buttonId: `.feedback bad ${encodeURIComponent(song)}`, buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
-      { buttonId: `.contact owner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
-      { buttonId: `.contact user`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
-    ],
-    headerType: 4,
-  });
-});
-
-
-//================= CONTACT (User + Owner) =================
-cmd({
-  pattern: "contact",
-  desc: "Send user or owner contact",
-  category: "general",
-  filename: __filename,
-}, async (conn, mek, m, { args }) => {
-  const who = args[0];
-  const senderNum = m.sender.split("@")[0];
-  const ownerNum = "94760264995";
   const userName = m.pushName || senderNum;
-  const ownerName = "👑 Sinhala Song Owner";
 
-  if (who === "user") {
-    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${userName}\nTEL;type=CELL;waid=${senderNum}:${senderNum}\nEND:VCARD`;
-    await conn.sendMessage(m.chat, {
-      contacts: { displayName: userName, contacts: [{ vcard }] },
-      footer: "📱 Sinhala Song Bot • User Contact Info",
-      buttons: [
-        { buttonId: `.replyuser ${senderNum}`, buttonText: { displayText: "💬 Reply User" }, type: 1 },
-        { buttonId: `.blockuser ${senderNum}`, buttonText: { displayText: "🚫 Block User" }, type: 1 },
-        { buttonId: `.contact owner`, buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
-      ],
-      headerType: 1,
-    });
-  } else if (who === "owner") {
-    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${ownerName}\nTEL;type=CELL;waid=${ownerNum}:${ownerNum}\nEND:VCARD`;
-    await conn.sendMessage(m.chat, {
-      contacts: { displayName: ownerName, contacts: [{ vcard }] },
-      footer: "👑 Sinhala Song Bot • Owner Contact Info",
-      buttons: [
-        { buttonId: `.replyuser ${ownerNum}`, buttonText: { displayText: "💬 Message Owner" }, type: 1 },
-        { buttonId: `.blockuser ${ownerNum}`, buttonText: { displayText: "🚫 Block Owner" }, type: 1 },
-        { buttonId: `.contact user`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
-      ],
-      headerType: 1,
-    });
-  } else {
-    await conn.sendMessage(m.chat, {
-      text: "📞 තෝරන්න contact එකක් 👇",
-      footer: "Sinhala Song Bot • Contact Menu",
-      buttons: [
-        { buttonId: ".contact user", buttonText: { displayText: "📱 User Contact" }, type: 1 },
-        { buttonId: ".contact owner", buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
-      ],
-      headerType: 4,
-    });
-  }
+  await conn.sendMessage(m.chat, {
+    text: `🎵 *Sinhala Song Feedback + Control Panel*\n\n👤 *User:* ${userName}\n📞 *Number:* wa.me/${senderNum}\n\nඔබට අවශ්‍ය ක්‍රියාව තෝරන්න 👇`,
+    footer: "🩷 Sinhala Song Bot • Control Menu",
+    buttons: [
+      { buttonId: `.replyuser ${senderNum}`, buttonText: { displayText: "💬 Reply to User" }, type: 1 },
+      { buttonId: `.blockuser ${senderNum}`, buttonText: { displayText: "🚫 Block User" }, type: 1 },
+      { buttonId: `.unblockuser ${senderNum}`, buttonText: { displayText: "✅ Unblock User" }, type: 1 },
+      { buttonId: `.contact user`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
+      { buttonId: `.contact owner`, buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+    ],
+    headerType: 4,
+  });
 });
 
 
@@ -809,44 +682,185 @@ cmd({
   desc: "Owner replies directly to a user",
   category: "owner",
   filename: __filename,
-}, async (conn, mek, m, { args }) => {
+}, async (conn, mek, m, { args, reply }) => {
+  if (m.sender !== ownerJid) {
+    return conn.sendMessage(m.chat, {
+      text: "🚫 Only the owner can use this command!",
+      footer: "👑 Sinhala Song Bot",
+      buttons: [
+        { buttonId: ".contact owner", buttonText: { displayText: "📞 Contact Owner" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  }
+
   const number = args[0];
   const message = args.slice(1).join(" ");
-  if (!number) return reply("⚠️ දුරකථන අංකය එකතු කරන්න.\nඋදා: .replyuser 9477xxxxxxx Hello!");
-  if (!message) return reply("💬 යවන්න message එකක්.\nඋදා: .replyuser 9477xxxxxxx Hello!");
+  if (!number || !message) {
+    return conn.sendMessage(m.chat, {
+      text: "⚠️ උදාහරණයක්:\n.replyuser 9477xxxxxxx Hello!",
+      footer: "💌 Sinhala Song Reply System",
+      buttons: [
+        { buttonId: ".contact owner", buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  }
 
-  await conn.sendMessage(`${number}@s.whatsapp.net`, { text: `💌 *Message from Owner:*\n${message}` });
-  await reply(`✅ Message sent to user wa.me/${number}`);
+  try {
+    await conn.sendMessage(`${number}@s.whatsapp.net`, {
+      text: `💌 *Message from Owner:*\n${message}`,
+    });
+    await conn.sendMessage(m.chat, {
+      text: `✅ Message sent to user wa.me/${number}`,
+      footer: "💬 Sinhala Song Bot • Reply Sent",
+      buttons: [
+        { buttonId: `.blockuser ${number}`, buttonText: { displayText: "🚫 Block User" }, type: 1 },
+        { buttonId: `.unblockuser ${number}`, buttonText: { displayText: "✅ Unblock User" }, type: 1 },
+        { buttonId: `.contact user`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  } catch (err) {
+    console.error(err);
+    await reply("⚠️ Message එක යැවීම අසාර්ථක විය!");
+  }
 });
 
 
 //================= BLOCK USER =================
 cmd({
   pattern: "blockuser",
-  desc: "Block a user",
+  desc: "Block a user (Owner Only)",
   category: "owner",
   filename: __filename,
-}, async (conn, mek, m, { args }) => {
-  const number = args[0];
-  if (!number) return reply("⚠️ Block කිරීමට අංකයක් දෙන්න.\nඋදා: .blockuser 9477xxxxxxx");
+}, async (conn, mek, m, { args, reply }) => {
+  if (m.sender !== ownerJid) return reply("🚫 Only the owner can use this command!");
 
-  await conn.updateBlockStatus(`${number}@s.whatsapp.net`, "block");
-  await reply(`🚫 User wa.me/${number} blocked successfully.`);
+  const number = args[0];
+  if (!number) {
+    return conn.sendMessage(m.chat, {
+      text: "⚠️ Block කිරීමට අංකයක් දෙන්න.\nඋදා: .blockuser 9477xxxxxxx",
+      footer: "🚫 Sinhala Song Bot • Block Menu",
+      buttons: [
+        { buttonId: ".contact owner", buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  }
+
+  try {
+    await conn.updateBlockStatus(`${number}@s.whatsapp.net`, "block");
+    await conn.sendMessage(m.chat, {
+      text: `🚫 User wa.me/${number} blocked successfully.`,
+      footer: "Sinhala Song Bot • Block Complete",
+      buttons: [
+        { buttonId: `.unblockuser ${number}`, buttonText: { displayText: "✅ Unblock User" }, type: 1 },
+        { buttonId: ".contact owner", buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  } catch (err) {
+    console.error(err);
+    await reply("⚠️ Block කිරීම අසාර්ථක විය!");
+  }
 });
 
 
 //================= UNBLOCK USER =================
 cmd({
   pattern: "unblockuser",
-  desc: "Unblock a user",
+  desc: "Unblock a user (Owner Only)",
   category: "owner",
   filename: __filename,
-}, async (conn, mek, m, { args }) => {
-  const number = args[0];
-  if (!number) return reply("⚠️ Unblock කිරීමට අංකයක් දෙන්න.\nඋදා: .unblockuser 9477xxxxxxx");
+}, async (conn, mek, m, { args, reply }) => {
+  if (m.sender !== ownerJid) return reply("🚫 Only the owner can use this command!");
 
-  await conn.updateBlockStatus(`${number}@s.whatsapp.net`, "unblock");
-  await reply(`✅ User wa.me/${number} unblocked successfully.`);
+  const number = args[0];
+  if (!number) {
+    return conn.sendMessage(m.chat, {
+      text: "⚠️ Unblock කිරීමට අංකයක් දෙන්න.\nඋදා: .unblockuser 9477xxxxxxx",
+      footer: "✅ Sinhala Song Bot • Unblock Menu",
+      buttons: [
+        { buttonId: ".contact owner", buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  }
+
+  try {
+    await conn.updateBlockStatus(`${number}@s.whatsapp.net`, "unblock");
+    await conn.sendMessage(m.chat, {
+      text: `✅ User wa.me/${number} unblocked successfully.`,
+      footer: "Sinhala Song Bot • Unblock Complete",
+      buttons: [
+        { buttonId: `.blockuser ${number}`, buttonText: { displayText: "🚫 Block Again" }, type: 1 },
+        { buttonId: ".contact owner", buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  } catch (err) {
+    console.error(err);
+    await reply("⚠️ Unblock කිරීම අසාර්ථක විය!");
+  }
+});
+
+
+//================= CONTACT MENU =================
+cmd({
+  pattern: "contact",
+  desc: "Send user or owner contact info",
+  category: "general",
+  filename: __filename,
+}, async (conn, mek, m, { args, reply }) => {
+  const who = args[0];
+  const senderNum = m.sender.split("@")[0];
+  const userName = m.pushName || senderNum;
+
+  try {
+    if (who === "user") {
+      //===== User Contact =====
+      const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${userName}\nTEL;type=CELL;waid=${senderNum}:${senderNum}\nEND:VCARD`;
+      await conn.sendMessage(m.chat, {
+        contacts: { displayName: userName, contacts: [{ vcard }] },
+        footer: "📱 Sinhala Song Bot • User Contact Info",
+        buttons: [
+          { buttonId: `.replyuser ${senderNum}`, buttonText: { displayText: "💬 Reply User" }, type: 1 },
+          { buttonId: `.blockuser ${senderNum}`, buttonText: { displayText: "🚫 Block User" }, type: 1 },
+          { buttonId: `.contact owner`, buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+        ],
+        headerType: 1,
+      });
+    } else if (who === "owner") {
+      //===== Owner Contact =====
+      const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${ownerName}\nTEL;type=CELL;waid=${ownerNum}:${ownerNum}\nEND:VCARD`;
+      await conn.sendMessage(m.chat, {
+        contacts: { displayName: ownerName, contacts: [{ vcard }] },
+        footer: "👑 Sinhala Song Bot • Owner Contact Info",
+        buttons: [
+          { buttonId: `.replyuser ${ownerNum}`, buttonText: { displayText: "💬 Message Owner" }, type: 1 },
+          { buttonId: `.blockuser ${ownerNum}`, buttonText: { displayText: "🚫 Block Owner" }, type: 1 },
+          { buttonId: `.contact user`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
+        ],
+        headerType: 1,
+      });
+    } else {
+      //===== Contact Menu =====
+      await conn.sendMessage(m.chat, {
+        text: "📞 තෝරන්න contact එකක් 👇",
+        footer: "Sinhala Song Bot • Contact Menu",
+        buttons: [
+          { buttonId: ".contact user", buttonText: { displayText: "📱 User Contact" }, type: 1 },
+          { buttonId: ".contact owner", buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+          { buttonId: ".control", buttonText: { displayText: "⚙️ Open Control Panel" }, type: 1 },
+        ],
+        headerType: 4,
+      });
+    }
+  } catch (err) {
+    console.error(err);
+    await reply("⚠️ Contact message එක යැවීම අසාර්ථක විය!");
+  }
 });
 
 //================= END OF FILE =================
