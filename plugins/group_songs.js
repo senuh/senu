@@ -14,6 +14,7 @@
 const { cmd } = require('../lib/command');
 const fs = require('fs');
 const path = require('path');
+const DB_FILE = "./feedback_db.json";
 const { createCanvas } = require("canvas");
 const { jsPDF } = require("jspdf");
 const axios = require('axios');
@@ -651,7 +652,6 @@ cmd({
 
 
 //================= DATABASE HANDLER =================
-const DB_FILE = "./feedback_db.json";
 
 function loadFeedback() {
   try {
