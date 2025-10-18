@@ -45,8 +45,8 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🧠 Send Sinhala Song (with buttons)
-async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false) {
+// 🧠 Send Sinhala Song (with command buttons)
+async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, asMp3 = false) {
   try {
     const search = await yts(query);
     const video = search.videos.find(v => {
@@ -55,34 +55,32 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false) {
     });
     if (!video) return reply("😭 No suitable song found.");
 
-    // prevent duplicates in auto mode
-    if (sentSongUrls.has(video.url) && !asVoice) return;
+    if (sentSongUrls.has(video.url) && !asVoice && !asMp3) return;
     sentSongUrls.add(video.url);
 
     const caption = `🎵 *${video.title}*
-    
-> 💆‍♂️ ᴍɪɴᴅ ʀᴇʟᴀxɪɴɢ ʙᴇꜱᴛ ꜱᴏɴɢ 💆❤‍🩹  
+> 💆‍♂️ ᴍɪɴᴅ ʀᴇʟᴀxɪɴɢ ꜱɪɴʜᴀʟᴀ ꜱʟᴏᴡᴇᴅ ꜱᴏɴɢ 💆❤‍🩹  
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬  
 00:00 ───●────────── ${video.timestamp}   
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬  
-🎧 Use headphones for best experience  
-⚙️ Powered by *Zanta-XMD*`;
+🎧 Use Headphones for Best Experience  
+⚙️ Powered by *Zanta-XMD Bot*`;
 
-    // 🎛 Send buttons
+    // 🎛 Send buttons (each triggers a command)
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
-      footer: "Select an option below 👇",
+      footer: "🎶 Choose your action below 👇",
       buttons: [
-        { buttonId: `voice_${video.url}`, buttonText: { displayText: "🎙 Voice Note" }, type: 1 },
-        { buttonId: `mp3_${video.url}`, buttonText: { displayText: "💾 Download MP3" }, type: 1 },
-        { buttonId: `next_${query}`, buttonText: { displayText: "🔁 Next Song" }, type: 1 }
+        { buttonId: `.songvoice ${query}`, buttonText: { displayText: "🎙 Voice Note" }, type: 1 },
+        { buttonId: `.songmp3 ${query}`, buttonText: { displayText: "💾 Download MP3" }, type: 1 },
+        { buttonId: `.song ${styles[Math.floor(Math.random() * styles.length)]}`, buttonText: { displayText: "🔁 Next Song" }, type: 1 }
       ],
       headerType: 4
     });
 
-    // if user selected asVoice=true, send voice
-    if (asVoice) {
+    // direct voice/mp3 sending logic
+    if (asVoice || asMp3) {
       const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
       const { data } = await axios.get(apiUrl);
       if (!data.status || !data.result?.download)
@@ -92,27 +90,31 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false) {
       const opusPath = path.join(__dirname, `${Date.now()}.opus`);
       try {
         await downloadFile(data.result.download, mp3Path);
-        await convertToOpus(mp3Path, opusPath);
-        await conn.sendMessage(targetJid, {
-          audio: fs.readFileSync(opusPath),
-          mimetype: 'audio/ogg; codecs=opus',
-          ptt: true,
-        });
+
+        if (asMp3) {
+          await conn.sendMessage(targetJid, { audio: fs.readFileSync(mp3Path), mimetype: 'audio/mpeg' });
+        } else if (asVoice) {
+          await convertToOpus(mp3Path, opusPath);
+          await conn.sendMessage(targetJid, {
+            audio: fs.readFileSync(opusPath),
+            mimetype: 'audio/ogg; codecs=opus',
+            ptt: true,
+          });
+        }
       } finally {
         if (fs.existsSync(mp3Path)) fs.unlinkSync(mp3Path);
         if (fs.existsSync(opusPath)) fs.unlinkSync(opusPath);
       }
     }
-
   } catch (err) {
     console.error("Send error:", err);
     reply("😭 Something went wrong while sending the song.");
   }
 }
 
-// 🎵 Manual Sinhala Song Downloader (with buttons)
+// 🎵 .song — Main Sinhala Slowed Song (with buttons)
 cmd({
-  pattern: "song",
+  pattern: "song4",
   desc: "Download Sinhala slowed song by name (with buttons)",
   category: "music",
   filename: __filename,
@@ -121,27 +123,24 @@ cmd({
   await sendSinhalaSong(conn, m.chat, reply, text);
 });
 
-// 🎶 Button actions handler
+// 🎙 .songvoice — Send Sinhala song as voice note
 cmd({
-  on: "button",
-}, async (conn, mek, m, { reply, body }) => {
-  try {
-    if (body.startsWith("voice_")) {
-      const url = body.split("voice_")[1];
-      await sendSinhalaSong(conn, m.chat, reply, url, true);
-    } else if (body.startsWith("mp3_")) {
-      const url = body.split("mp3_")[1];
-      const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(url)}&format=mp3&apikey=sadiya`;
-      const { data } = await axios.get(apiUrl);
-      if (!data.status || !data.result?.download)
-        return reply("⚠️ Couldn't fetch mp3 link.");
-      await conn.sendMessage(m.chat, { audio: { url: data.result.download }, mimetype: 'audio/mpeg' });
-    } else if (body.startsWith("next_")) {
-      const query = body.split("next_")[1];
-      await sendSinhalaSong(conn, m.chat, reply, query);
-    }
-  } catch (err) {
-    console.error("Button handler error:", err);
-    reply("⚠️ Error handling button.");
-  }
+  pattern: "songvoice",
+  desc: "Send Sinhala slowed song as voice note",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { text, reply }) => {
+  if (!text) return reply("🎙 Please enter a song name!");
+  await sendSinhalaSong(conn, m.chat, reply, text, true, false);
+});
+
+// 💾 .songmp3 — Send Sinhala song as MP3
+cmd({
+  pattern: "songmp3",
+  desc: "Send Sinhala slowed song as normal MP3",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { text, reply }) => {
+  if (!text) return reply("💾 Please enter a song name!");
+  await sendSinhalaSong(conn, m.chat, reply, text, false, true);
 });
