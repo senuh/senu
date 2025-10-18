@@ -17,10 +17,16 @@ const styles = [
   "sinhala mashup slowed reverb",
 ];
 
-// 🔧 Convert to Opus
-async function convertToOpus(inputPath, outputPath) {
+// 🌀 Slowed + Reverb + Convert to Opus
+async function slowAndConvert(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
+      .audioFilters([
+        'asetrate=44100*0.85', // Slow down slightly
+        'atempo=1.1',          // Maintain clarity
+        'aecho=0.8:0.9:1000:0.3', // Add reverb
+        'volume=1.3'           // Slight volume boost
+      ])
       .audioCodec('libopus')
       .audioBitrate('64k')
       .format('opus')
@@ -74,6 +80,7 @@ cmd({
       const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
       const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
 
+      // 🧩 Download YouTube audio
       const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
       await new Promise((resolve, reject) => {
         const file = fs.createWriteStream(tmpMp4);
@@ -82,8 +89,10 @@ cmd({
         file.on('error', reject);
       });
 
-      await convertToOpus(tmpMp4, tmpOpus);
+      // 🌀 Apply slowed + reverb + convert
+      await slowAndConvert(tmpMp4, tmpOpus);
 
+      // 🎤 Send voice note
       await conn.sendMessage(from, {
         audio: fs.readFileSync(tmpOpus),
         mimetype: 'audio/ogg; codecs=opus',
@@ -92,6 +101,7 @@ cmd({
 
       fs.unlinkSync(tmpMp4);
       fs.unlinkSync(tmpOpus);
+      await reply("✅ Song එක Play වෙලා! 🎧");
     } catch (err) {
       console.error(err);
       reply("⚠️ Song එක play වෙද්දි error එකක් ඇති!");
@@ -99,7 +109,7 @@ cmd({
   }
 });
 
-// 🎵 .song command — now works with argument directly
+// 🎵 .song command
 cmd({
   pattern: "song",
   desc: "Download Sinhala slowed song with play button",
