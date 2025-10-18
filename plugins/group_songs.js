@@ -65,17 +65,16 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 > 🎧 Use headphones for best experience.
 > ⚡ Powered by ZANTA-XMD Bot`;
 
-    // Send image + button
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
       buttons: [
         { buttonId: 'next_song', buttonText: { displayText: '🎵 Next Song' }, type: 1 },
+        { buttonId: 'stop_auto', buttonText: { displayText: '⛔ Stop Auto' }, type: 1 },
       ],
       footer: 'ZANTA-XMD Sinhala Vibe Bot 💫',
     });
 
-    // Fetch mp3 from API
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
 
@@ -85,20 +84,15 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
     const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
     const opusPath = path.join(__dirname, `${Date.now()}.opus`);
 
-    // Download MP3
     await downloadFile(data.result.download, mp3Path);
-
-    // Convert to Opus
     await convertToOpus(mp3Path, opusPath);
 
-    // Send voice note
     await conn.sendMessage(targetJid, {
       audio: fs.readFileSync(opusPath),
       mimetype: 'audio/ogg; codecs=opus',
       ptt: true,
     });
 
-    // Clean temp
     fs.unlinkSync(mp3Path);
     fs.unlinkSync(opusPath);
 
@@ -108,16 +102,30 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
   }
 }
 
-// 🎶 .sinhalavoice — auto Sinhala songs
+// 🎶 .sinhalavoice — Auto Sinhala songs (with buttons)
 cmd({
   pattern: "sinhalavoice",
-  desc: "Auto Sinhala slowed songs every 20 minutes",
+  desc: "Auto Sinhala slowed songs with buttons",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  if (autoSongInterval) return reply("🟡 Already running!");
   const targetJid = m.chat;
-  reply("✅ Auto Sinhala slowed songs started — every 20 minutes.");
+
+  // 🎵 Send start message with buttons
+  await conn.sendMessage(targetJid, {
+    text: `✅ *Auto Sinhala Slowed Songs Started* 🎧
+
+You will receive a random Sinhala slowed/reverb song every 20 minutes.
+
+Use the buttons below 👇`,
+    buttons: [
+      { buttonId: 'next_song', buttonText: { displayText: '🎵 Next Song' }, type: 1 },
+      { buttonId: 'stop_auto', buttonText: { displayText: '⛔ Stop Auto' }, type: 1 },
+    ],
+    footer: 'ZANTA-XMD Sinhala Vibe Bot 💫',
+  });
+
+  if (autoSongInterval) return reply("🟡 Already running!");
 
   const sendRandom = async () => {
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
@@ -131,22 +139,27 @@ cmd({
 // ⛔ .stop3 — Stop auto
 cmd({
   pattern: "stop3",
-  desc: "Stop auto Sinhala slowed songs",
+  desc: "Stop automatic Sinhala slowed songs",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (!autoSongInterval) return reply("⛔ Auto mode is not running.");
   clearInterval(autoSongInterval);
   autoSongInterval = null;
-  reply("🛑 Auto Sinhala slowed songs stopped.");
+  reply("🛑 Auto Sinhala slowed song sending stopped.");
 });
 
-// 🎵 Handle "Next Song" button
+// 🎵 Handle buttons
 cmd({
   on: "button",
 }, async (conn, mek, m, { buttonId, reply }) => {
   if (buttonId === "next_song") {
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
     await sendSinhalaSong(conn, m.chat, reply, randomStyle);
+  } else if (buttonId === "stop_auto") {
+    if (!autoSongInterval) return reply("⚠️ Auto mode is not running.");
+    clearInterval(autoSongInterval);
+    autoSongInterval = null;
+    reply("🛑 Auto Sinhala slowed songs stopped.");
   }
 });
