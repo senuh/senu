@@ -14,6 +14,8 @@
 const { cmd } = require('../lib/command');
 const fs = require('fs');
 const path = require('path');
+const { createCanvas } = require("canvas");
+const { jsPDF } = require("jspdf");
 const axios = require('axios');
 const yts = require('yt-search');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
@@ -647,9 +649,6 @@ cmd({
 //================= SINHALA SONG FEEDBACK SYSTEM =================
 // 🔰 Developed for ZANTA-XMD by ChatGPT (Sinhala + Auto PDF + Charts)
 
-const fs = require("fs");
-const { createCanvas } = require("canvas");
-const { jsPDF } = require("jspdf");
 
 //================= DATABASE HANDLER =================
 const DB_FILE = "./feedback_db.json";
