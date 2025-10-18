@@ -17,15 +17,15 @@ const styles = [
   "sinhala mashup slowed reverb",
 ];
 
-// 🌀 Slowed + Reverb + Convert to Opus
+// 🌀 Slow + Reverb + Convert to Opus
 async function slowAndConvert(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
       .audioFilters([
-        'asetrate=44100*0.85', // Slow down slightly
-        'atempo=1.1',          // Maintain clarity
-        'aecho=0.8:0.9:1000:0.3', // Add reverb
-        'volume=1.3'           // Slight volume boost
+        'asetrate=44100*0.85',
+        'atempo=1.1',
+        'aecho=0.8:0.9:1000:0.3',
+        'volume=1.3'
       ])
       .audioCodec('libopus')
       .audioBitrate('64k')
@@ -36,7 +36,7 @@ async function slowAndConvert(inputPath, outputPath) {
   });
 }
 
-// 🎵 Send Sinhala slowed song with Play button
+// 🎵 Send Sinhala slowed song (with all buttons)
 async function sendSinhalaSong(conn, chatId, reply, query) {
   try {
     const search = await yts(query);
@@ -46,17 +46,16 @@ async function sendSinhalaSong(conn, chatId, reply, query) {
     const infoMsg = `🎶 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> Mind relaxing Sinhala slowed reverb song 🎧`;
 
     const buttons = [
-      {
-        buttonId: `play_song_${v.videoId}`,
-        buttonText: { displayText: "🎧 Play Song" },
-        type: 1
-      }
+      { buttonId: `play_song_${v.videoId}`, buttonText: { displayText: "🎧 Play Song" }, type: 1 },
+      { buttonId: `next_song`, buttonText: { displayText: "⏭ Next Song" }, type: 1 },
+      { buttonId: `owner_info`, buttonText: { displayText: "👑 Owner" }, type: 1 },
+      { buttonId: `follow_channel`, buttonText: { displayText: "📢 Follow Channel" }, type: 1 },
     ];
 
     await conn.sendMessage(chatId, {
       image: { url: v.thumbnail },
       caption: infoMsg,
-      footer: "Tap 🎧 Play Song to listen!",
+      footer: "Tap below buttons to enjoy more Sinhala slowed songs 💫",
       buttons,
       headerType: 4
     });
@@ -66,21 +65,20 @@ async function sendSinhalaSong(conn, chatId, reply, query) {
   }
 }
 
-// 🎧 Handle Play button clicks
+// 🎧 Handle All Button Clicks
 cmd({
   onButton: true
 }, async (conn, mek, m, { buttonId, reply, from }) => {
-  if (buttonId.startsWith('play_song_')) {
-    const videoId = buttonId.replace('play_song_', '');
-    const url = `https://www.youtube.com/watch?v=${videoId}`;
+  try {
+    // ▶️ Play Song button
+    if (buttonId.startsWith('play_song_')) {
+      const videoId = buttonId.replace('play_song_', '');
+      const url = `https://www.youtube.com/watch?v=${videoId}`;
+      await reply("🎧 Song එක සකස් වෙමින් පවතී...");
 
-    await reply("🎧 Song එක සකස් වෙමින් පවතී...");
-
-    try {
       const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
       const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
 
-      // 🧩 Download YouTube audio
       const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
       await new Promise((resolve, reject) => {
         const file = fs.createWriteStream(tmpMp4);
@@ -89,10 +87,8 @@ cmd({
         file.on('error', reject);
       });
 
-      // 🌀 Apply slowed + reverb + convert
       await slowAndConvert(tmpMp4, tmpOpus);
 
-      // 🎤 Send voice note
       await conn.sendMessage(from, {
         audio: fs.readFileSync(tmpOpus),
         mimetype: 'audio/ogg; codecs=opus',
@@ -102,17 +98,48 @@ cmd({
       fs.unlinkSync(tmpMp4);
       fs.unlinkSync(tmpOpus);
       await reply("✅ Song එක Play වෙලා! 🎧");
-    } catch (err) {
-      console.error(err);
-      reply("⚠️ Song එක play වෙද්දි error එකක් ඇති!");
     }
+
+    // ⏭ Next Song button
+    else if (buttonId === 'next_song') {
+      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+      await reply("💫 තවත් slowed song එකක් load වෙමින්...");
+      await sendSinhalaSong(conn, from, reply, randomStyle);
+    }
+
+    // 👑 Owner Info button
+    else if (buttonId === 'owner_info') {
+      const vcard = `
+BEGIN:VCARD
+VERSION:3.0
+FN:👑 Pahasara Bot Owner
+ORG:ZANTA-XMD BOT;
+TEL;type=CELL;type=VOICE;waid=94760264995:+94 76 026 4995
+END:VCARD`.trim();
+
+      await conn.sendMessage(from, {
+        contacts: { displayName: "👑 Pahasara Bot Owner", contacts: [{ vcard }] },
+      });
+      await reply("👑 Owner contact shared!");
+    }
+
+    // 📢 Follow Channel button
+    else if (buttonId === 'follow_channel') {
+      await conn.sendMessage(from, {
+        text: "📢 Follow our official WhatsApp Channel for more Sinhala slowed songs:\n👉 https://whatsapp.com/channel/0029Vb4F314CMY0OBErLlV2M",
+      });
+    }
+
+  } catch (err) {
+    console.error(err);
+    reply("⚠️ Button click එකට error එකක් ඇති!");
   }
 });
 
-// 🎵 .song command
+// 🎵 .song Command (all buttons)
 cmd({
   pattern: "song",
-  desc: "Download Sinhala slowed song with play button",
+  desc: "Download Sinhala slowed song with all buttons",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { args, reply, from }) => {
@@ -121,49 +148,4 @@ cmd({
 
   await reply("🎧 Song එක load වෙමින් පවතී...");
   await sendSinhalaSong(conn, from, reply, query + " sinhala slowed reverb song");
-});
-
-// ⏭️ .nextsong — random Sinhala slowed song
-cmd({
-  pattern: "nextsong",
-  desc: "Play another Sinhala slowed song",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-  await reply("💫 තවත් slowed song එකක් load වෙමින්...");
-  await sendSinhalaSong(conn, m.chat, reply, randomStyle);
-});
-
-// 👑 .owner2
-cmd({
-  pattern: "owner2",
-  desc: "Send bot owner contact",
-  category: "info",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const vcard = `
-BEGIN:VCARD
-VERSION:3.0
-FN:👑 Pahasara Bot Owner
-ORG:ZANTA-XMD BOT;
-TEL;type=CELL;type=VOICE;waid=94760264995:+94 76 026 4995
-END:VCARD`.trim();
-
-  await conn.sendMessage(m.chat, {
-    contacts: { displayName: "👑 Pahasara Bot Owner", contacts: [{ vcard }] },
-  });
-  await reply("👑 Owner contact shared!");
-});
-
-// 📢 .followchannel
-cmd({
-  pattern: "followchannel",
-  desc: "Send WhatsApp Channel link",
-  category: "info",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  await conn.sendMessage(m.chat, {
-    text: "📢 Follow our official WhatsApp Channel for more Sinhala slowed songs:\n👉 https://whatsapp.com/channel/0029Vb4F314CMY0OBErLlV2M",
-  });
 });
