@@ -7,16 +7,6 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// Sinhala slowed song styles
-const styles = [
-  "sinhala slowed reverb song",
-  "sinhala love slowed song",
-  "sinhala vibe slowed song",
-  "sinhala sad slowed song",
-  "sinhala teledrama slowed song",
-  "sinhala mashup slowed reverb",
-];
-
 // 🌀 Slow + Reverb + Convert to Opus
 async function slowAndConvert(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
@@ -36,116 +26,136 @@ async function slowAndConvert(inputPath, outputPath) {
   });
 }
 
-// 🎵 Send Sinhala slowed song (with all buttons)
-async function sendSinhalaSong(conn, chatId, reply, query) {
+// 🎧 Play Sinhala sad slowed song
+async function playSinhalaSong(conn, from, reply, query) {
   try {
     const search = await yts(query);
-    if (!search.videos.length) return reply("😢 ඒ නමින් slowed song එකක් හොයාගන්න බැහැ!");
+    if (!search.videos.length) return reply("😢 ඒ නමින් song එකක් හොයාගන්න බැහැ!");
 
-    const v = search.videos[Math.floor(Math.random() * Math.min(5, search.videos.length))];
-    const infoMsg = `🎶 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> Mind relaxing Sinhala slowed reverb song 🎧`;
+    const v = search.videos[0];
+    const url = v.url;
 
-    const buttons = [
-      { buttonId: `play_song_${v.videoId}`, buttonText: { displayText: "🎧 Play Song" }, type: 1 },
-      { buttonId: `next_song`, buttonText: { displayText: "⏭ Next Song" }, type: 1 },
-      { buttonId: `owner_info`, buttonText: { displayText: "👑 Owner" }, type: 1 },
-      { buttonId: `follow_channel`, buttonText: { displayText: "📢 Follow Channel" }, type: 1 },
-    ];
+    await reply(`🎧 *${v.title}* sad slowed version එක සකස් වෙමින් පවතී...`);
 
-    await conn.sendMessage(chatId, {
-      image: { url: v.thumbnail },
-      caption: infoMsg,
-      footer: "Tap below buttons to enjoy more Sinhala slowed songs 💫",
-      buttons,
-      headerType: 4
+    const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
+    const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
+
+    const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
+    await new Promise((resolve, reject) => {
+      const file = fs.createWriteStream(tmpMp4);
+      stream.pipe(file);
+      file.on('finish', resolve);
+      file.on('error', reject);
     });
+
+    await slowAndConvert(tmpMp4, tmpOpus);
+
+    await conn.sendMessage(from, {
+      audio: fs.readFileSync(tmpOpus),
+      mimetype: 'audio/ogg; codecs=opus',
+      ptt: true // voice note 🎤
+    });
+
+    fs.unlinkSync(tmpMp4);
+    fs.unlinkSync(tmpOpus);
   } catch (err) {
     console.error(err);
-    reply("⚠️ Song එක load වෙද්දි error එකක් ඇති!");
+    reply("⚠️ Song එක play වෙද්දි error එකක් ඇති!");
   }
 }
 
-// 🎧 Handle All Button Clicks
+// 🎵 .playlist — Sinhala Sad Vibe auto-update
 cmd({
-  onButton: true
-}, async (conn, mek, m, { buttonId, reply, from }) => {
+  pattern: "playlist",
+  desc: "Show live Sinhala Sad slowed reverb playlist",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply, from }) => {
   try {
-    // ▶️ Play Song button
-    if (buttonId.startsWith('play_song_')) {
-      const videoId = buttonId.replace('play_song_', '');
-      const url = `https://www.youtube.com/watch?v=${videoId}`;
-      await reply("🎧 Song එක සකස් වෙමින් පවතී...");
+    await reply("😢 Sad vibe playlist එක load වෙමින් පවතී...");
 
-      const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
-      const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
+    // YouTube search for sad vibe slowed songs
+    const search = await yts("sinhala sad slowed reverb song");
+    const songs = search.videos.slice(0, 8); // latest 8 sad songs
 
-      const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
-      await new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(tmpMp4);
-        stream.pipe(file);
-        file.on('finish', resolve);
-        file.on('error', reject);
-      });
+    if (!songs.length) return reply("😢 Sad songs playlist එක load වෙලා නැහැ!");
 
-      await slowAndConvert(tmpMp4, tmpOpus);
+    const buttons = songs.map((song, i) => ({
+      buttonId: `play_sad_${encodeURIComponent(song.title)}`,
+      buttonText: { displayText: `🎧 ${i + 1}. ${song.title.slice(0, 25)}...` },
+      type: 1,
+    }));
 
-      await conn.sendMessage(from, {
-        audio: fs.readFileSync(tmpOpus),
-        mimetype: 'audio/ogg; codecs=opus',
-        ptt: true
-      });
-
-      fs.unlinkSync(tmpMp4);
-      fs.unlinkSync(tmpOpus);
-      await reply("✅ Song එක Play වෙලා! 🎧");
-    }
-
-    // ⏭ Next Song button
-    else if (buttonId === 'next_song') {
-      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-      await reply("💫 තවත් slowed song එකක් load වෙමින්...");
-      await sendSinhalaSong(conn, from, reply, randomStyle);
-    }
-
-    // 👑 Owner Info button
-    else if (buttonId === 'owner_info') {
-      const vcard = `
-BEGIN:VCARD
-VERSION:3.0
-FN:👑 Pahasara Bot Owner
-ORG:ZANTA-XMD BOT;
-TEL;type=CELL;type=VOICE;waid=94760264995:+94 76 026 4995
-END:VCARD`.trim();
-
-      await conn.sendMessage(from, {
-        contacts: { displayName: "👑 Pahasara Bot Owner", contacts: [{ vcard }] },
-      });
-      await reply("👑 Owner contact shared!");
-    }
-
-    // 📢 Follow Channel button
-    else if (buttonId === 'follow_channel') {
-      await conn.sendMessage(from, {
-        text: "📢 Follow our official WhatsApp Channel for more Sinhala slowed songs:\n👉 https://whatsapp.com/channel/0029Vb4F314CMY0OBErLlV2M",
-      });
-    }
+    await conn.sendMessage(from, {
+      text: "😔 *Sinhala Sad Vibe Slowed Playlist 🇱🇰*\n\n🪩 Mind-calming & emotional tracks 💔\n\nSelect a song below 👇",
+      footer: "ZANTA-XMD Sad Vibe Player",
+      buttons,
+      headerType: 1
+    });
 
   } catch (err) {
     console.error(err);
-    reply("⚠️ Button click එකට error එකක් ඇති!");
+    reply("⚠️ Playlist එක load වෙද්දි error එකක් ඇති!");
   }
 });
 
-// 🎵 .song Command (all buttons)
+// 🎧 Handle Sad Playlist Button Clicks
+cmd({
+  onButton: true
+}, async (conn, mek, m, { buttonId, reply, from }) => {
+  if (buttonId.startsWith("play_sad_")) {
+    const query = decodeURIComponent(buttonId.replace("play_sad_", ""));
+    await playSinhalaSong(conn, from, reply, query + " sinhala sad slowed reverb song");
+  }
+
+  if (buttonId === "playlist_refresh_sad") {
+    const search = await yts("sinhala sad slowed reverb song");
+    const songs = search.videos.slice(0, 8);
+    if (!songs.length) return reply("😢 Playlist එක refresh වෙලා නැහැ!");
+
+    const buttons = songs.map((song, i) => ({
+      buttonId: `play_sad_${encodeURIComponent(song.title)}`,
+      buttonText: { displayText: `🎧 ${i + 1}. ${song.title.slice(0, 25)}...` },
+      type: 1,
+    }));
+
+    await conn.sendMessage(from, {
+      text: "🔁 *Updated Sinhala Sad Vibe Playlist* 😔\nSelect a song below 👇",
+      footer: "ZANTA-XMD Sad Vibe Player",
+      buttons,
+      headerType: 1
+    });
+  }
+});
+
+// 🎵 .song — Sad song version too
 cmd({
   pattern: "song",
-  desc: "Download Sinhala slowed song with all buttons",
+  desc: "Play Sinhala sad slowed song with buttons",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { args, reply, from }) => {
   const query = args.join(" ");
   if (!query) return reply("🎵 කරුණාකර සිංදුවේ නම type කරන්න (උදා: *.song Pahasara*)");
 
-  await reply("🎧 Song එක load වෙමින් පවතී...");
-  await sendSinhalaSong(conn, from, reply, query + " sinhala slowed reverb song");
+  await reply("😔 Sad song එක load වෙමින් පවතී...");
+
+  const search = await yts(query + " sinhala sad slowed reverb song");
+  if (!search.videos.length) return reply("😢 ඒ නමින් slowed song එකක් හොයාගන්න බැහැ!");
+
+  const v = search.videos[0];
+  const infoMsg = `💔 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> Sinhala sad vibe slowed reverb song 😔`;
+
+  const buttons = [
+    { buttonId: `play_sad_${encodeURIComponent(v.title)}`, buttonText: { displayText: "🎧 Play Sad Song" }, type: 1 },
+    { buttonId: "playlist_refresh_sad", buttonText: { displayText: "🔁 Sad Playlist" }, type: 1 },
+  ];
+
+  await conn.sendMessage(from, {
+    image: { url: v.thumbnail },
+    caption: infoMsg,
+    footer: "Tap 🎧 to listen or 🔁 for playlist",
+    buttons,
+    headerType: 4
+  });
 });
