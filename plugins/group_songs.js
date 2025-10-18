@@ -61,13 +61,19 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 
     // 🖼️ Send each video as a nice display card
     for (const v of videos) {
+      // Download mp3 for button
+      const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(v.url)}&format=mp3&apikey=sadiya`;
+      const { data } = await axios.get(apiUrl);
+
+      let mp3Url = data?.result?.download || v.url;
+
       await conn.sendMessage(targetJid, {
         image: { url: v.thumbnail },
-        caption: `🎵 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> 💆‍♂️ Mind relaxing Sinhala slowed song 🎧\n\n🎧 Use headphones for best experience.`,
+        caption: `🎵 *${v.title}*\n🕒 ${v.timestamp}\n\n> 💆‍♂️ Mind relaxing Sinhala slowed song 🎧\n> Use headphones for best experience.`,
         footer: "ZANTA-XMD BOT • Powered by Sadiya API",
         buttons: [
-          { buttonId: `play_${v.url}`, buttonText: { displayText: "▶️ Play" }, type: 1 },
-          { buttonId: `copy_${v.url}`, buttonText: { displayText: "📋 Copy Link" }, type: 1 },
+          { buttonId: `play_${v.url}`, buttonText: { displayText: "▶️ Play Voice" }, type: 1 },
+          { buttonId: `mp3_${mp3Url}`, buttonText: { displayText: "🎧 MP3 Download" }, type: 1 },
         ],
         headerType: 4,
       });
@@ -113,7 +119,7 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 // 🔁 Auto Sinhala slowed 2-song mode
 cmd({
   pattern: "sinhalavoice2",
-  desc: "Auto Sinhala slowed songs (2 song cards) every 20 minutes",
+  desc: "Auto Sinhala slowed songs (2 song cards with mp3 button) every 20 minutes",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
