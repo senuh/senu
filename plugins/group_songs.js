@@ -127,7 +127,7 @@ Use the menu below to control playback 👇`,
   };
 
   await sendRandom();
-  autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000);
+  autoSongInterval = setInterval(sendRandom, 1 * 60 * 1000);
 });
 
 // Stop command (manual)
