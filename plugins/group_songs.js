@@ -644,10 +644,10 @@ cmd({
   }
 });
 
-//================= FEEDBACK SYSTEM =================
+//================= FEEDBACK SYSTEM (Updated with View Details Panel) =================
 cmd({
   pattern: "feedback",
-  desc: "Send song feedback to bot owner",
+  desc: "Send song feedback to bot owner with detailed view",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { args, reply }) => {
@@ -655,23 +655,68 @@ cmd({
   const songName = args.slice(1).join(" ") || "Unknown Song";
   const senderNum = m.sender.split("@")[0];
   const user = m.pushName || senderNum;
-  const groupName = m.isGroup ? m.chat : "Private Chat";
+  const groupName = m.isGroup ? "Group Chat" : "Private Chat";
   const ownerJid = OWNER_JID;
+  const mood = detectMood(songName);
 
-  let msgText;
+  let msgText, emoji;
   if (type === "good") {
-    msgText = `🩷 *Feedback Alert!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Liked the song\n🎶 Song: ${songName}\n📍 Chat: ${groupName}`;
-    await reply("🩷 ඔබගේ අදහස Owner ට යවන ලදි ✅");
+    emoji = "🩷";
+    msgText = `${emoji} *Positive Feedback!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Liked the song\n🎶 Song: ${songName}\n🌀 Mood: ${mood.toUpperCase()}\n📍 Chat: ${groupName}`;
+    await reply(`${emoji} ඔබගේ අදහස Owner ට යවන ලදි ✅`);
   } else if (type === "bad") {
-    msgText = `💔 *Feedback Alert!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Didn't like the song\n🎶 Song: ${songName}\n📍 Chat: ${groupName}`;
-    await reply("💔 ඔබගේ අදහස Owner ට යවන ලදි 😢");
+    emoji = "💔";
+    msgText = `${emoji} *Negative Feedback!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Didn't like the song\n🎶 Song: ${songName}\n🌀 Mood: ${mood.toUpperCase()}\n📍 Chat: ${groupName}`;
+    await reply(`${emoji} ඔබගේ අදහස Owner ට යවන ලදි 😢`);
   } else return reply("⚠️ වැරදි feedback command එකක්!");
 
   try {
+    // send feedback to owner
     await conn.sendMessage(ownerJid, { text: msgText });
+
+    // show details panel to user
+    await conn.sendMessage(m.chat, {
+      text: `${emoji} *ඔයාගේ අදහස සාර්ථකව යවන ලදි!*\nඔයාගේ විස්තර පහතින් බලන්න 👇`,
+      footer: `${emoji} Sinhala Song Feedback • ZANTA-XMD BOT`,
+      buttons: [
+        { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 බලන්න - විස්තර" }, type: 1 },
+        { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
+        { buttonId: `.contactowner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+
   } catch (err) {
     console.error("Error sending feedback to owner:", err);
   }
+});
+
+//================= VIEW DETAILS PANEL =================
+cmd({
+  pattern: "viewdetails",
+  desc: "View user feedback details with buttons",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { args, reply }) => {
+  const song = decodeURIComponent(args[0] || "Unknown Song");
+  const type = args[1] || "unknown";
+  const senderNum = m.sender.split("@")[0];
+  const user = m.pushName || senderNum;
+  const mood = detectMood(song);
+  const emoji = type === "good" ? "🩷" : "💔";
+
+  const info = `${emoji} *Feedback Details*\n\n👤 *User:* ${user}\n📞 *Number:* wa.me/${senderNum}\n🎶 *Song:* ${song}\n🌀 *Mood:* ${mood.toUpperCase()}\n💬 *Reaction:* ${type === "good" ? "🩷 හොඳයි" : "💔 හොඳ නෑ"}`;
+
+  await conn.sendMessage(m.chat, {
+    text: info,
+    footer: `${emoji} Sinhala Song Feedback • ZANTA-XMD BOT`,
+    buttons: [
+      { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
+      { buttonId: `.contactowner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
+      { buttonId: `.stop3`, buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+    ],
+    headerType: 4,
+  });
 });
 
 //================= END OF FILE =================
