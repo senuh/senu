@@ -4,7 +4,7 @@ const config = require('../settings')
 cmd({
     pattern: "settings2",
     react: "⚙️",
-    desc: "Display Bot Settings Menu (Button List)",
+    desc: "Display Full Bot Settings Menu",
     category: "main",
     use: '.settings',
     filename: __filename
@@ -12,91 +12,88 @@ cmd({
     try {
         if (!isMe) return reply(config.LANG === 'SI' ? "*ඔබ Bot හිමිකරු නොවේ!*" : "*You are not the bot owner!*")
 
-        const caption = `⚙️ *ZANTA-XMD SETTINGS MENU*
+        const caption = `
+╭───────────────────
+│ ⚙️ *ZANTA-XMD FULL SETTINGS MENU*
+│ 👨‍💻 *Powered by MR SURANGA | MOD-Z*
+╰───────────────────
 
-👨‍💻 Powered by MR SURANGA | MOD-Z
+📋 *Select a setting below using buttons or type commands manually.*
+
 ━━━━━━━━━━━━━━━━━━
-Select any setting below 👇`
+🧩 *BOT CONTROL*
+> 🤖 Private Mode — .onlygroup on  
+> 🌐 Public Mode — .onlygroup off  
+> 🛑 Shutdown Bot — .disablepm on  
+> ✅ Enable Bot — .disablepm off
 
-        const sections = [
-            {
-                title: "🧩 BOT CONTROL SETTINGS",
-                rows: [
-                    { title: "🤖 Bot Private Mode", rowId: ".onlygroup on", description: "Turn Bot to Private" },
-                    { title: "🌐 Bot Public Mode", rowId: ".onlygroup off", description: "Turn Bot to Public" },
-                    { title: "🛑 Shutdown Bot", rowId: ".disablepm on", description: "Disable Bot in PM" },
-                    { title: "✅ Enable Bot", rowId: ".disablepm off", description: "Enable Bot in PM" },
-                ]
-            },
-            {
-                title: "🎛️ AUTO FEATURES",
-                rows: [
-                    { title: "🎤 Auto Voice", rowId: ".autovoice on", description: "Enable auto voice" },
-                    { title: "🖼️ Auto Sticker", rowId: ".autosticker on", description: "Enable auto sticker" },
-                    { title: "💬 Auto Reply", rowId: ".autoreply on", description: "Enable auto reply" },
-                    { title: "📜 Auto Bio", rowId: ".autobio on", description: "Enable auto bio" },
-                    { title: "📲 Auto Status View", rowId: ".autostatus on", description: "Enable auto status view" },
-                ]
-            },
-            {
-                title: "🧠 AI FEATURES",
-                rows: [
-                    { title: "🤖 AI Chatbot", rowId: ".aichatbot on", description: "Enable AI chat" },
-                    { title: "🧮 AI Maths", rowId: ".mathsai on", description: "Enable AI Maths" },
-                    { title: "🎨 AI Image", rowId: ".aiimage on", description: "Enable AI Image generation" },
-                ]
-            },
-            {
-                title: "🚫 PROTECTION SETTINGS",
-                rows: [
-                    { title: "🔗 Anti Link", rowId: ".antilink on", description: "Block links in groups" },
-                    { title: "💀 Anti Bad", rowId: ".antibad on", description: "Block bad words" },
-                    { title: "📴 Anti Delete", rowId: ".antidelete on", description: "Stop message delete" },
-                    { title: "📞 Anti Call", rowId: ".anticall on", description: "Block incoming calls" },
-                    { title: "🤖 Anti Bot", rowId: ".antibot on", description: "Block other bots" },
-                ]
-            },
-            {
-                title: "👋 WELCOME / STATUS",
-                rows: [
-                    { title: "👋 Auto Welcome", rowId: ".autowelcome on", description: "Welcome new users" },
-                    { title: "🪪 Welcome Message", rowId: ".welcome on", description: "Enable welcome message" },
-                ]
-            },
-            {
-                title: "⚡ OWNER & REACTION SETTINGS",
-                rows: [
-                    { title: "👑 Owner React", rowId: ".oreact on", description: "Enable Owner React" },
-                    { title: "😎 Auto React", rowId: ".autoreact on", description: "Enable Auto Reaction" },
-                    { title: "🕒 Cmd Read", rowId: ".cmdread on", description: "Enable command read receipts" },
-                ]
-            },
-            {
-                title: "🔐 MODE SETTINGS",
-                rows: [
-                    { title: "👥 Only Group Mode", rowId: ".onlygroup on", description: "Bot works only in groups" },
-                    { title: "🙋‍♂️ Only Me Mode", rowId: ".onlyme on", description: "Owner-only mode" },
-                    { title: "⚙️ Button Mode", rowId: ".mode on", description: "Enable Button Mode" },
-                ]
-            },
-        ]
+━━━━━━━━━━━━━━━━━━
+🎛️ *AUTO FEATURES*
+> 💬 Auto Reply — .autoreply on  
+> 🖼️ Auto Sticker — .autosticker on  
+> 🎤 Auto Voice — .autovoice on  
+> 📜 Auto Bio — .autobio on  
+> 📲 Auto Status View — .autostatus on  
 
-        const listMessage = {
-            title: '',
-            text: caption,
-            footer: config.FOOTER || "ZANTA-XMD Bot",
-            buttonText: "📋 Open Settings Menu",
-            sections,
-            buttons: [
-                { buttonId: '.status', buttonText: { displayText: '🧾 View Current Status' }, type: 1 },
-                { buttonId: '.menu', buttonText: { displayText: '📚 Main Menu' }, type: 1 },
-                { buttonId: '.ping', buttonText: { displayText: '⚡ Bot Status' }, type: 1 },
-            ],
+━━━━━━━━━━━━━━━━━━
+🧠 *AI FEATURES*
+> 🤖 AI Chatbot — .aichatbot on  
+> 🧮 AI Maths — .mathsai on  
+> 🎨 AI Image — .aiimage on  
+
+━━━━━━━━━━━━━━━━━━
+🚫 *PROTECTION SETTINGS*
+> 🔗 Anti Link — .antilink on  
+> 💀 Anti Bad — .antibad on  
+> 📴 Anti Delete — .antidelete on  
+> 📞 Anti Call — .anticall on  
+> 🤖 Anti Bot — .antibot on  
+
+━━━━━━━━━━━━━━━━━━
+👋 *WELCOME / STATUS*
+> 👋 Auto Welcome — .autowelcome on  
+> 🪪 Welcome Message — .welcome on  
+
+━━━━━━━━━━━━━━━━━━
+⚡ *REACTIONS / OWNER SETTINGS*
+> 👑 Owner React — .oreact on  
+> 😎 Auto React — .autoreact on  
+> 🕒 Cmd Read — .cmdread on  
+
+━━━━━━━━━━━━━━━━━━
+🔐 *MODE SETTINGS*
+> 👥 Only Group Mode — .onlygroup on  
+> 🙋‍♂️ Only Me Mode — .onlyme on  
+> ⚙️ Button Mode — .mode on  
+
+━━━━━━━━━━━━━━━━━━
+📡 *SYSTEM OPTIONS*
+> 🧾 View Current Status — .status  
+> 📚 Main Menu — .menu  
+> ⚡ Bot Status — .ping
+━━━━━━━━━━━━━━━━━━
+`
+
+        await conn.sendMessage(from, {
             image: { url: config.LOGO },
+            caption: caption.trim(),
+            footer: config.FOOTER || "ZANTA-XMD Bot System",
+            buttons: [
+                { buttonId: '.status', buttonText: { displayText: '🧾 View Status' }, type: 1 },
+                { buttonId: '.menu', buttonText: { displayText: '📚 Main Menu' }, type: 1 },
+                { buttonId: '.ping', buttonText: { displayText: '⚡ Bot Speed Test' }, type: 1 },
+                { buttonId: '.onlygroup on', buttonText: { displayText: '🔒 Private Mode' }, type: 1 },
+                { buttonId: '.onlygroup off', buttonText: { displayText: '🌐 Public Mode' }, type: 1 },
+                { buttonId: '.autoreply on', buttonText: { displayText: '💬 Auto Reply ON' }, type: 1 },
+                { buttonId: '.autosticker on', buttonText: { displayText: '🖼️ Auto Sticker ON' }, type: 1 },
+                { buttonId: '.aichatbot on', buttonText: { displayText: '🤖 Enable AI Chatbot' }, type: 1 },
+                { buttonId: '.antilink on', buttonText: { displayText: '🔗 Anti Link ON' }, type: 1 },
+                { buttonId: '.antibad on', buttonText: { displayText: '💀 Anti Bad ON' }, type: 1 },
+                { buttonId: '.autowelcome on', buttonText: { displayText: '👋 Auto Welcome ON' }, type: 1 },
+                { buttonId: '.oreact on', buttonText: { displayText: '👑 Owner React ON' }, type: 1 },
+            ],
             headerType: 4
-        }
-
-        await conn.sendMessage(from, listMessage, { quoted: mek })
+        }, { quoted: mek })
 
     } catch (e) {
         console.log(e)
