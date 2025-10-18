@@ -7,9 +7,12 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-let autoSongIntervals = {};
-let lastSongs = {};
+// ====== Global Variables ======
+let autoSongIntervals = {}; // per-chat auto mode
+let autoTrendInterval = null; // trending playlist updater
+let playedSongs = {}; // prevent duplicate songs
 
+// ====== Sinhala Song Styles ======
 const styles = [
   "sinhala slowed reverb song",
   "sinhala love slowed song",
@@ -21,7 +24,7 @@ const styles = [
   "sinhala boot slowed song",
 ];
 
-// ---------------- Helpers ----------------
+// ====== Helper Functions ======
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: "stream" });
@@ -47,22 +50,18 @@ async function convertToOpus(inputPath, outputPath) {
 async function sendSinhalaSong(conn, jid, reply, query) {
   try {
     const search = await yts(query);
-    let videos = search.videos.filter(v => {
+    const video = search.videos.find(v => {
       const t = v.timestamp.split(':').map(Number);
       const seconds = t.length === 3 ? t[0]*3600 + t[1]*60 + t[2] : t[0]*60 + t[1];
       return seconds <= 480;
     });
+    if (!video) return reply("😭 No suitable song found.");
 
-    if (!videos.length) return reply("😭 No suitable song found.");
-
-    // avoid repeat
-    const lastId = lastSongs[jid];
-    if (lastId) videos = videos.filter(v => v.videoId !== lastId);
-
-    const video = videos[Math.floor(Math.random() * videos.length)];
-    if (!video) return reply("⚠️ No new song found (duplicates skipped).");
-
-    lastSongs[jid] = video.videoId;
+    // prevent duplicates
+    if (!playedSongs[jid]) playedSongs[jid] = new Set();
+    if (playedSongs[jid].has(video.videoId)) return sendSinhalaSong(conn, jid, reply, query);
+    playedSongs[jid].add(video.videoId);
+    if (playedSongs[jid].size > 20) playedSongs[jid].clear();
 
     const caption = `🎶 *${video.title}* 🎶
 
@@ -77,7 +76,7 @@ async function sendSinhalaSong(conn, jid, reply, query) {
       buttons: [
         { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
         { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
-        { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here" }, type: 1 },
+        { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here Menu" }, type: 1 },
       ],
       headerType: 4,
     });
@@ -109,7 +108,7 @@ async function sendSinhalaSong(conn, jid, reply, query) {
   }
 }
 
-// ---------------- Commands ----------------
+// ====== Sinhala Voice Auto Mode ======
 cmd({
   pattern: "sinhalavoice",
   desc: "Auto Sinhala slowed songs with buttons",
@@ -128,7 +127,7 @@ Use the menu below to control playback 👇`,
     buttons: [
       { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
       { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
-      { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here" }, type: 1 },
+      { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here Menu" }, type: 1 },
     ],
     headerType: 4,
   });
@@ -142,7 +141,7 @@ Use the menu below to control playback 👇`,
   autoSongIntervals[jid] = setInterval(sendRandom, 20 * 60 * 1000);
 });
 
-// ---------------- Next Song ----------------
+// ====== Next Song ======
 cmd({
   pattern: "nextsong",
   desc: "Play next Sinhala slowed song immediately",
@@ -155,7 +154,7 @@ cmd({
   await sendSinhalaSong(conn, jid, reply, randomStyle);
 });
 
-// ---------------- Stop Auto ----------------
+// ====== Stop Auto Sinhala ======
 cmd({
   pattern: "stop3",
   desc: "Stop automatic Sinhala slowed songs",
@@ -166,33 +165,133 @@ cmd({
   if (!autoSongIntervals[jid]) return reply("⚠️ Auto mode not running.");
   clearInterval(autoSongIntervals[jid]);
   delete autoSongIntervals[jid];
-  delete lastSongs[jid];
   reply("🛑 Auto Sinhala slowed songs stopped.");
 });
 
-// ---------------- Click Here Command ----------------
+// ====== Click Here Menu ======
 cmd({
   pattern: "clickhere",
-  desc: "Show Sinhala slowed playlist",
+  desc: "Open Sinhala slowed song playlist menu",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m) => {
+  const jid = m.chat;
+
+  await conn.sendMessage(jid, {
+    text: "📀 *Choose your Sinhala Slowed Vibe* 🎧\nSelect a style below 👇",
+    footer: "🎵 Sinhala Style Playlist Menu",
+    buttons: [
+      { buttonId: ".style love", buttonText: { displayText: "💞 Love Slowed" }, type: 1 },
+      { buttonId: ".style sad", buttonText: { displayText: "😢 Sad Vibe" }, type: 1 },
+      { buttonId: ".style mashup", buttonText: { displayText: "🎧 Mashup Reverb" }, type: 1 },
+      { buttonId: ".style teledrama", buttonText: { displayText: "📺 Teledrama Song" }, type: 1 },
+      { buttonId: ".style 2024", buttonText: { displayText: "⚡ 2024 Trend" }, type: 1 },
+      { buttonId: ".trendinglist", buttonText: { displayText: "🔥 Trending Playlist" }, type: 1 },
+    ],
+    headerType: 4,
+  });
+});
+
+// ====== Style Command ======
+cmd({
+  pattern: "style",
+  desc: "Play Sinhala slowed song by style",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { args, reply }) => {
+  const jid = m.chat;
+  const type = args.join(" ").toLowerCase() || "sinhala slowed song";
+  reply(`🎵 Loading ${type}...`);
+  await sendSinhalaSong(conn, jid, reply, type);
+});
+
+// ====== Trending Playlist ======
+cmd({
+  pattern: "trendinglist",
+  desc: "Show trending Sinhala slowed/reverb songs",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   const jid = m.chat;
+  reply("📡 Fetching latest trending Sinhala slowed songs...");
 
-  const playlist = `
-📀 *Sinhala Slowed Vibe Playlist* 🎧
+  try {
+    const search = await yts("sinhala slowed reverb song");
+    const trending = search.videos.filter(v => v.seconds < 480).slice(0, 8);
 
-1️⃣ Amaradewa - Sandak Nage (Slowed Reverb)
-2️⃣ Yohani - Manike Mage Hithe (Slowed Remix)
-3️⃣ Bathiya & Santhush - Oba Nisa (Slowed)
-4️⃣ Kasun Kalhara - Ape Game (Reverb Mix)
-5️⃣ Randhir - Sinasenna (Vibe Slowed)
-6️⃣ Wayo - Mage Punchi Rosa Male (Slowed Reverb)
-7️⃣ Sanuka - Adare Tharamata (Slowed Love)
-8️⃣ Yohani - Ithin Adare (Vibe Reverb)
+    if (!trending.length) return reply("😔 No trending Sinhala songs found right now.");
 
-💿 Use *🎵 Next Song* button to play one now!
-`;
+    let msg = "🔥 *Trending Sinhala Slowed/Reverb Songs* 🔥\n\n";
+    trending.forEach((v, i) => {
+      msg += `🎵 *${i + 1}. ${v.title}*\n📺 https://youtu.be/${v.videoId}\n\n`;
+    });
+    msg += "⚡ Choose one by copying the link or use `.style trend` to play a random trending one.";
 
-  await conn.sendMessage(jid, { text: playlist });
+    await conn.sendMessage(jid, {
+      text: msg,
+      footer: "🎶 Auto-updated playlist (YouTube trending)",
+      buttons: [
+        { buttonId: ".style trend", buttonText: { displayText: "🎧 Play Trending Song" }, type: 1 },
+        { buttonId: ".clickhere", buttonText: { displayText: "📀 Back to Menu" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  } catch (err) {
+    console.error(err);
+    reply("❌ Error while fetching trending list.");
+  }
+});
+
+// ====== Auto Trending ======
+cmd({
+  pattern: "autotrend",
+  desc: "Automatically update Sinhala trending playlist every 1 hour",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  const jid = m.chat;
+  if (autoTrendInterval) return reply("🟡 Auto trending mode already running!");
+
+  reply("✅ Auto Sinhala Trending Playlist Activated!\nBot will refresh trending songs every hour.");
+
+  const sendTrending = async () => {
+    try {
+      const search = await yts("sinhala slowed reverb song");
+      const trending = search.videos.filter(v => v.seconds < 480).slice(0, 8);
+      if (!trending.length) return;
+
+      let msg = "🔥 *Auto-Updated Trending Sinhala Slowed/Reverb Songs* 🔥\n\n";
+      trending.forEach((v, i) => {
+        msg += `🎵 *${i + 1}. ${v.title}*\n📺 https://youtu.be/${v.videoId}\n\n`;
+      });
+
+      await conn.sendMessage(jid, {
+        text: msg,
+        footer: "🎶 Auto Sinhala Trending Playlist",
+        buttons: [
+          { buttonId: ".style trend", buttonText: { displayText: "🎧 Play Trending Song" }, type: 1 },
+          { buttonId: ".stoptrend", buttonText: { displayText: "🛑 Stop Auto Trend" }, type: 1 },
+        ],
+        headerType: 4,
+      });
+    } catch (err) {
+      console.error("Trending fetch error:", err);
+    }
+  };
+
+  await sendTrending();
+  autoTrendInterval = setInterval(sendTrending, 60 * 60 * 1000); // every 1 hour
+});
+
+// ====== Stop Auto Trending ======
+cmd({
+  pattern: "stoptrend",
+  desc: "Stop automatic trending Sinhala playlist updates",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  if (!autoTrendInterval) return reply("⚠️ Auto trending not running.");
+  clearInterval(autoTrendInterval);
+  autoTrendInterval = null;
+  reply("🛑 Auto Sinhala Trending Playlist stopped.");
 });
