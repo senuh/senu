@@ -854,7 +854,7 @@ await autoFollow(channel4, "CHANNEL 4")
 const msgId = mek.key?.server_id
 
 // Emojis mix list
-const emojis = ["❤️", "❤️‍🔥", "🤎", "🤍", "🖤", "🤍", "💝", "💔", "💙", "🩵"]
+const emojis = ["💐", "🔐", "🤎", "🤍", "🖤", "🤍", "💝", "💔", "💙", "🩵"]
 
 async function autoReact(channel, msgId) {
   try {
