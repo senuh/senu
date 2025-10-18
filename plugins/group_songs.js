@@ -647,89 +647,173 @@ cmd({
   }
 });
 
-//================= SINHALA SONG FEEDBACK SYSTEM =================
-// 🔰 Developed for ZANTA-XMD by ChatGPT (Sinhala + Auto PDF + Charts)
+//================= FULL FEEDBACK SYSTEM (Sinhala Song Bot) =================
+// 🔰 Developed for ZANTA-XMD by ChatGPT (Custom Sinhala Buttons Edition)
 
-
-//================= DATABASE HANDLER =================
-
-function loadFeedback() {
-  try {
-    return JSON.parse(fs.readFileSync(DB_FILE));
-  } catch {
-    return {};
-  }
-}
-
-function saveFeedback(db) {
-  fs.writeFileSync(DB_FILE, JSON.stringify(db, null, 2));
-}
-
-function detectMood(song) {
-  const lower = song.toLowerCase();
-  if (lower.includes("adare") || lower.includes("sanda")) return "romantic";
-  if (lower.includes("duka") || lower.includes("pena")) return "sad";
-  if (lower.includes("hada") || lower.includes("obata")) return "emotional";
-  return "normal";
-}
-
-//================= USER FEEDBACK HISTORY (PUBLIC VERSION) =================
 cmd({
-  pattern: "userfeedback",
-  desc: "View any user's feedback history (public access)",
+  pattern: "feedback",
+  desc: "Send full feedback with buttons + owner notification + user DP",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { args, reply }) => {
-  const feedbackDB = loadFeedback();
+  const type = args[0];
+  const songName = args.slice(1).join(" ") || "Unknown Song 🎶";
+  const senderJid = m.sender;
+  const senderNum = senderJid.split("@")[0];
+  const user = m.pushName || senderNum;
+  const groupName = m.isGroup ? "👥 Group Chat" : "💬 Private Chat";
+  const ownerJid = "94760264995@s.whatsapp.net"; // 👑 Fixed Owner Number
+  const mood = detectMood(songName) || "Normal";
 
-  // get target number
-  let targetNum = args[0];
-  if (!targetNum) {
-    return reply("📞 කරුණාකර බලන්න ඕන user එකේ number එක දෙන්න!\n\nඋදාහරණය:\n.userfeedback 94761234567");
-  }
-
-  targetNum = targetNum.replace(/[^0-9]/g, ""); // sanitize
-
-  let found = [];
-  for (const [song, data] of Object.entries(feedbackDB)) {
-    data.users.forEach((u) => {
-      if (u.number === targetNum) {
-        found.push({
-          song,
-          reaction: u.reaction,
-          time: u.time,
-        });
-      }
+  if (!["good", "bad"].includes(type)) {
+    return conn.sendMessage(m.chat, {
+      text: "⚠️ වැරදි feedback command එකක්!\n\nUse:\n.feedback good [song name]\n.feedback bad [song name]",
+      footer: "🩷 Sinhala Song Feedback • ZANTA-XMD BOT",
+      buttons: [
+        { buttonId: ".feedback good", buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
+        { buttonId: ".feedback bad", buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
+      ],
+      headerType: 4,
     });
   }
 
-  if (found.length === 0) {
-    return reply(`❌ User wa.me/${targetNum} කිසිම feedback එකක් දුන්නෙ නෑ.`);
+  const emoji = type === "good" ? "🩷" : "💔";
+  const reactionText = type === "good" ? "🩷 හොඳයි (Liked)" : "💔 හොඳ නෑ (Disliked)";
+  const moodText = type === "good" ? "ඔයාට මේ සින්දුවට කැමතියි 🥰" : "ඔයාට මේ සින්දුව හොඳ නෑ වගේ 😢";
+
+  // Try get user profile picture
+  let pfpUrl = null;
+  try {
+    if (typeof conn.profilePictureUrl === "function") {
+      pfpUrl = await conn.profilePictureUrl(senderJid, "image");
+    }
+  } catch {
+    pfpUrl = null;
+  }
+  const fallbackPfp = "https://i.ibb.co/sVKr0fj/defaultvibe.webp";
+
+  //================= OWNER NOTIFICATION (With DP + Buttons) =================
+  const ownerMsg = `${emoji} *New ${type === "good" ? "Positive" : "Negative"} Feedback!*\n\n👤 *User:* ${user}\n📞 *Number:* wa.me/${senderNum}\n🎶 *Song:* ${songName}\n🌀 *Mood:* ${mood.toUpperCase()}\n💬 *Reaction:* ${reactionText}\n📍 *Chat:* ${groupName}`;
+
+  const ownerButtons = [
+    { buttonId: `.replyuser ${senderNum}`, buttonText: { displayText: "💬 Reply to User" }, type: 1 },
+    { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 View Details" }, type: 1 },
+    { buttonId: `.contact user ${senderNum}`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
+    { buttonId: `.blockuser ${senderNum}`, buttonText: { displayText: "🚫 Block User" }, type: 1 },
+  ];
+
+  try {
+    await conn.sendMessage(ownerJid, {
+      image: { url: pfpUrl || fallbackPfp },
+      caption: ownerMsg,
+      footer: "📩 Sinhala Song Feedback • Owner Alert",
+      buttons: ownerButtons,
+      headerType: 4,
+    });
+  } catch (err) {
+    console.log("❌ Error sending owner notification:", err);
   }
 
-  let text = `📜 *User Feedback History*\n\n👤 *User:* wa.me/${targetNum}\n🧾 *Total Feedbacks:* ${found.length}\n━━━━━━━━━━━━━━━\n`;
-
-  found.forEach((f, i) => {
-    const emoji = f.reaction === "good" ? "🩷" : "💔";
-    text += `${i + 1}. ${emoji} *${f.song}*\n🕒 ${f.time}\n\n`;
-  });
-
-  // summary counts
-  const totalGood = found.filter((f) => f.reaction === "good").length;
-  const totalBad = found.filter((f) => f.reaction === "bad").length;
-
-  text += `━━━━━━━━━━━━━━━\n🩷 *Good:* ${totalGood}\n💔 *Bad:* ${totalBad}\n📊 *Overall Rating:* ${((totalGood / (totalGood + totalBad)) * 100).toFixed(1)}%\n`;
-
+  //================= USER CONFIRMATION PANEL =================
   await conn.sendMessage(m.chat, {
-    text,
-    footer: "📜 Sinhala Song Feedback • Public Viewer",
+    text: `${emoji} *ඔයාගේ අදහස Owner ට යවන ලදි!*\n${moodText}\n\nඔයාගේ විස්තර බලන්න හෝ වෙනත් ක්‍රියාකාරකම් තෝරන්න 👇`,
+    footer: `${emoji} Sinhala Song Feedback • ZANTA-XMD BOT`,
     buttons: [
-      { buttonId: ".viewhistory", buttonText: { displayText: "📜 View All Songs" }, type: 1 },
-      { buttonId: ".feedback good", buttonText: { displayText: "🩷 Give Feedback" }, type: 1 },
-      { buttonId: `.contact user ${targetNum}`, buttonText: { displayText: "📱 Contact User" }, type: 1 },
+      { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 බලන්න - විස්තර" }, type: 1 },
+      { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
+      { buttonId: `.contact owner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
+      { buttonId: `.stop3`, buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
     ],
     headerType: 4,
   });
+});
+
+
+//================= VIEW DETAILS (Full Button Mode) =================
+cmd({
+  pattern: "viewdetails",
+  desc: "View user feedback details (button mode)",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { args }) => {
+  const song = decodeURIComponent(args[0] || "Unknown Song 🎶");
+  const type = args[1] || "unknown";
+  const senderNum = m.sender.split("@")[0];
+  const user = m.pushName || senderNum;
+  const mood = detectMood(song);
+  const emoji = type === "good" ? "🩷" : "💔";
+
+  const info = `${emoji} *Feedback Details*\n\n👤 *User:* ${user}\n📞 *Number:* wa.me/${senderNum}\n🎶 *Song:* ${song}\n🌀 *Mood:* ${mood.toUpperCase()}\n💬 *Reaction:* ${type === "good" ? "🩷 හොඳයි" : "💔 හොඳ නෑ"}`;
+
+  await conn.sendMessage(m.chat, {
+    text: info,
+    footer: `${emoji} Sinhala Song Feedback • ZANTA-XMD BOT`,
+    buttons: [
+      { buttonId: `.feedback good ${encodeURIComponent(song)}`, buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
+      { buttonId: `.feedback bad ${encodeURIComponent(song)}`, buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
+      { buttonId: `.contact owner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
+      { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
+    ],
+    headerType: 4,
+  });
+});
+
+
+//================= CONTACT CARD SYSTEM (User + Owner) =================
+cmd({
+  pattern: "contact",
+  desc: "Send user or owner contact with vCard + buttons",
+  category: "general",
+  filename: __filename,
+}, async (conn, mek, m, { args }) => {
+  const who = args[0]; // 'user' or 'owner'
+  const senderNum = m.sender.split("@")[0];
+  const ownerNum = "94760264995";
+  const userName = m.pushName || senderNum;
+  const ownerName = "👑 Sinhala Song Owner";
+
+  // USER CONTACT
+  if (who === "user") {
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${userName}\nTEL;type=CELL;type=VOICE;waid=${senderNum}:${senderNum}\nEND:VCARD`;
+    await conn.sendMessage(m.chat, {
+      contacts: { displayName: userName, contacts: [{ vcard }] },
+      buttons: [
+        { buttonId: `.feedback good`, buttonText: { displayText: "🩷 Send Feedback" }, type: 1 },
+        { buttonId: `.viewdetails`, buttonText: { displayText: "👤 View Feedback Details" }, type: 1 },
+        { buttonId: `.contact owner`, buttonText: { displayText: "📞 Owner Contact" }, type: 1 },
+      ],
+      footer: "📱 Sinhala Song Bot • User Contact Info",
+      headerType: 1,
+    });
+  }
+
+  // OWNER CONTACT
+  else if (who === "owner") {
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${ownerName}\nTEL;type=CELL;type=VOICE;waid=${ownerNum}:${ownerNum}\nEND:VCARD`;
+    await conn.sendMessage(m.chat, {
+      contacts: { displayName: ownerName, contacts: [{ vcard }] },
+      buttons: [
+        { buttonId: `.feedback good`, buttonText: { displayText: "🩷 Send Feedback" }, type: 1 },
+        { buttonId: `.viewdetails`, buttonText: { displayText: "👤 View Feedback Details" }, type: 1 },
+        { buttonId: `.contact user`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
+      ],
+      footer: "👑 Sinhala Song Bot • Owner Contact Info",
+      headerType: 1,
+    });
+  }
+
+  // MENU (NO ARG)
+  else {
+    await conn.sendMessage(m.chat, {
+      text: "⚙️ තෝරන්න ඔබට අවශ්‍ය Contact එක👇",
+      footer: "📞 Sinhala Song Bot • Contact Menu",
+      buttons: [
+        { buttonId: ".contact user", buttonText: { displayText: "📱 User Contact" }, type: 1 },
+        { buttonId: ".contact owner", buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  }
 });
 
 //================= END OF FILE =================
