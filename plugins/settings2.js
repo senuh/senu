@@ -12,7 +12,7 @@ var alredy = (config.LANG === 'SI') ? "මෙම සැකසුම දැනට
 //===========================================================================
 
 cmd({
-  pattern: "settings",
+  pattern: "settings2",
   react: "⚙️",
   desc: "Show and manage bot settings",
   category: "main",
