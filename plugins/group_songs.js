@@ -9,7 +9,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 
 let autoSongInterval = null;
 
-// 🎶 Sinhala styles list
+// 🎶 Sinhala slowed song styles
 const styles = [
   "sinhala slowed reverb song",
   "sinhala love slowed song",
@@ -21,7 +21,7 @@ const styles = [
   "sinhala boot slowed song",
 ];
 
-// 🧩 File downloader
+// 🧩 Download helper
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -45,7 +45,7 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🎵 Send two Sinhala songs with nice cards
+// 🎧 Main function — Send two Sinhala songs (with thumbnails)
 async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
     const search = await yts(query);
@@ -55,16 +55,16 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
         const seconds = time.length === 3 ? time[0] * 3600 + time[1] * 60 + time[2] : time[0] * 60 + time[1];
         return seconds <= 480;
       })
-      .slice(0, 2);
+      .slice(0, 2); // only 2 songs
 
     if (videos.length === 0) return reply("😢 No Sinhala slowed songs found.");
 
-    // 🖼️ Send both thumbnails as separate cards
+    // 🖼️ Send each video as a nice display card
     for (const v of videos) {
       await conn.sendMessage(targetJid, {
         image: { url: v.thumbnail },
-        caption: `🎵 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> Mind relaxing Sinhala slowed song 💆‍♂️🎧`,
-        footer: "ZANTA-XMD BOT",
+        caption: `🎵 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> 💆‍♂️ Mind relaxing Sinhala slowed song 🎧\n\n🎧 Use headphones for best experience.`,
+        footer: "ZANTA-XMD BOT • Powered by Sadiya API",
         buttons: [
           { buttonId: `play_${v.url}`, buttonText: { displayText: "▶️ Play" }, type: 1 },
           { buttonId: `copy_${v.url}`, buttonText: { displayText: "📋 Copy Link" }, type: 1 },
@@ -73,9 +73,9 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
       });
     }
 
-    // 🎧 Download + send first as voice note
-    const video = videos[0];
-    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
+    // 🎙️ Download & send first one as voice note
+    const firstVideo = videos[0];
+    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(firstVideo.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
 
     if (!data.status || !data.result?.download)
@@ -87,18 +87,18 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
     await downloadFile(data.result.download, mp3Path);
     await convertToOpus(mp3Path, opusPath);
 
-    // 🎙️ Voice note
+    // 🎤 Send voice note (opus)
     await conn.sendMessage(targetJid, {
       audio: fs.readFileSync(opusPath),
       mimetype: 'audio/ogg; codecs=opus',
       ptt: true,
     });
 
-    // 🎧 MP3 document
+    // 💾 Send mp3 document
     await conn.sendMessage(targetJid, {
       document: fs.readFileSync(mp3Path),
       mimetype: 'audio/mp3',
-      fileName: `${video.title}.mp3`,
+      fileName: `${firstVideo.title}.mp3`,
     });
 
     fs.unlinkSync(mp3Path);
@@ -106,20 +106,20 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 
   } catch (err) {
     console.error("Send error:", err);
-    reply("😭 Something went wrong while sending songs.");
+    reply("😭 Something went wrong while sending Sinhala songs.");
   }
 }
 
-// 🔁 Auto Sinhala slowed songs every 20 minutes
+// 🔁 Auto Sinhala slowed 2-song mode
 cmd({
   pattern: "sinhalavoice2",
-  desc: "Auto Sinhala slowed songs (2 side by side) every 20 minutes",
+  desc: "Auto Sinhala slowed songs (2 song cards) every 20 minutes",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  if (autoSongInterval) return reply("🟡 Already running!");
+  if (autoSongInterval) return reply("🟡 Sinhala 2-song auto mode already running!");
   const targetJid = m.chat;
-  reply("✅ Auto Sinhala slowed 2-song mode started — every 20 minutes 🎧");
+  reply("✅ Sinhala slowed 2-song auto mode started — every 20 minutes 🎶");
 
   const sendRandom = async () => {
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
