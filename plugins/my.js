@@ -110,7 +110,7 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
 
 // 🎵 .song — Main Command (Welcome UI)
 cmd({
-  pattern: "song",
+  pattern: "song4",
   desc: "Sinhala slowed songs menu with buttons",
   category: "music",
   filename: __filename,
