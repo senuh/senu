@@ -7,185 +7,148 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// Sinhala slowed song styles
-const styles = [
-  "sinhala slowed reverb song",
-  "sinhala love slowed song",
-  "sinhala vibe slowed song",
-  "sinhala sad slowed song",
-  "sinhala teledrama slowed song",
-  "sinhala mashup slowed reverb",
-];
-
-// 🌀 Slow + Reverb + Convert to Opus (voice note)
-async function slowAndConvert(inputPath, outputPath) {
+// 🌀 Convert & Add Slowed + Reverb effects, output Opus (Voice note)
+async function makeVoiceNote(input, output) {
   return new Promise((resolve, reject) => {
-    ffmpeg(inputPath)
+    ffmpeg(input)
       .audioFilters([
-        'asetrate=44100*0.85',
-        'atempo=1.1',
-        'aecho=0.8:0.9:1000:0.3',
-        'volume=1.3'
+        'asetrate=44100*0.85',   // slowed
+        'atempo=1.1',            // adjust timing
+        'aecho=0.8:0.9:1000:0.3',// reverb
+        'volume=1.3'             // volume boost
       ])
       .audioCodec('libopus')
       .audioBitrate('64k')
       .format('opus')
       .on('end', resolve)
       .on('error', reject)
-      .save(outputPath);
+      .save(output);
   });
 }
 
-// 🎵 Send Sinhala slowed song info + buttons
-async function sendSinhalaSong(conn, chatId, reply, query) {
+// 🎧 Download + process song
+async function playSong(conn, from, reply, query) {
   try {
     const search = await yts(query);
     if (!search.videos.length) return reply("😢 ඒ නමින් slowed song එකක් හොයාගන්න බැහැ!");
 
-    const v = search.videos[Math.floor(Math.random() * Math.min(5, search.videos.length))];
-    const infoMsg = `🎶 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> Mind relaxing Sinhala slowed reverb song 🎧`;
+    const v = search.videos[0];
+    await reply(`🎧 *${v.title}* එක සකස් වෙමින් පවතී...`);
 
-    const buttons = [
-      { buttonId: `play_song_${v.videoId}`, buttonText: { displayText: "🎧 Play Song" }, type: 1 },
-      { buttonId: `next_song`, buttonText: { displayText: "⏭ Next Song" }, type: 1 },
-      { buttonId: `owner_info`, buttonText: { displayText: "👑 Owner" }, type: 1 },
-      { buttonId: `follow_channel`, buttonText: { displayText: "📢 Follow Channel" }, type: 1 },
-    ];
+    const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
+    const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
 
-    await conn.sendMessage(chatId, {
-      image: { url: v.thumbnail },
-      caption: infoMsg,
-      footer: "Tap below buttons to enjoy more Sinhala slowed songs 💫",
-      buttons,
-      headerType: 4
+    const stream = ytdl(v.url, { filter: 'audioonly', quality: 'highestaudio' });
+    await new Promise((resolve, reject) => {
+      const file = fs.createWriteStream(tmpMp4);
+      stream.pipe(file);
+      file.on('finish', resolve);
+      file.on('error', reject);
     });
+
+    await makeVoiceNote(tmpMp4, tmpOpus);
+
+    await conn.sendMessage(from, {
+      audio: fs.readFileSync(tmpOpus),
+      mimetype: 'audio/ogg; codecs=opus',
+      ptt: true // ✅ Voice Note bubble style
+    });
+
+    fs.unlinkSync(tmpMp4);
+    fs.unlinkSync(tmpOpus);
   } catch (err) {
     console.error(err);
-    reply("⚠️ Song එක load වෙද්දි error එකක් ඇති!");
+    reply("⚠️ Song එක play වෙද්දි error එකක් ඇති!");
   }
 }
 
-// 🎧 Handle All Buttons (Play, Next, Owner, Follow)
+// 🔁 Send playlist (Sad ❤️ Love)
+async function sendPlaylist(conn, from, reply, mood) {
+  try {
+    const searchQuery = mood === 'sad' ? 'sinhala sad slowed reverb song' : 'sinhala love slowed reverb song';
+    const title = mood === 'sad' ? '😢 Sinhala Sad Vibe Playlist' : '❤️ Sinhala Love Vibe Playlist';
+    const footer = '🎧 ZANTA-XMD Slowed Player';
+
+    await reply(`${title} එක load වෙමින් පවතී...`);
+
+    const search = await yts(searchQuery);
+    const songs = search.videos.slice(0, 8);
+    if (!songs.length) return reply("😢 Playlist එක load වෙලා නැහැ!");
+
+    const buttons = songs.map((song, i) => ({
+      buttonId: `play_${mood}_${encodeURIComponent(song.title)}`,
+      buttonText: { displayText: `🎵 ${i + 1}. ${song.title.slice(0, 25)}...` },
+      type: 1
+    }));
+
+    buttons.push({
+      buttonId: mood === "sad" ? "switch_love" : "switch_sad",
+      buttonText: { displayText: mood === "sad" ? "❤️ Switch to Love Mode" : "😢 Switch to Sad Mode" },
+      type: 1
+    });
+
+    await conn.sendMessage(from, {
+      text: `${title}\n\n🎶 Mind-calming Sinhala slowed reverb songs.`,
+      footer,
+      buttons,
+      headerType: 1
+    });
+  } catch (err) {
+    console.error(err);
+    reply("⚠️ Playlist එක load වෙද්දි error එකක් ඇති!");
+  }
+}
+
+// 🎵 .playlist — start from Sad mode
+cmd({
+  pattern: "playlist",
+  desc: "Show Sinhala Sad/Love slowed playlist",
+  category: "music",
+  filename: __filename
+}, async (conn, mek, m, { reply, from }) => {
+  await sendPlaylist(conn, from, reply, 'sad');
+});
+
+// 🎧 Handle buttons
 cmd({
   onButton: true
 }, async (conn, mek, m, { buttonId, reply, from }) => {
-  try {
-    // ▶️ Play Song
-    if (buttonId.startsWith('play_song_')) {
-      const videoId = buttonId.replace('play_song_', '');
-      const url = `https://www.youtube.com/watch?v=${videoId}`;
-      await reply("🎧 Song එක සකස් වෙමින් පවතී...");
-
-      const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
-      const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
-
-      const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
-      await new Promise((resolve, reject) => {
-        const file = fs.createWriteStream(tmpMp4);
-        stream.pipe(file);
-        file.on('finish', resolve);
-        file.on('error', reject);
-      });
-
-      await slowAndConvert(tmpMp4, tmpOpus);
-
-      await conn.sendMessage(from, {
-        audio: fs.readFileSync(tmpOpus),
-        mimetype: 'audio/ogg; codecs=opus',
-        ptt: true // ✅ voice note
-      });
-
-      fs.unlinkSync(tmpMp4);
-      fs.unlinkSync(tmpOpus);
-      await reply("✅ Song එක Play වෙලා! 🎧");
-    }
-
-    // ⏭ Next Song
-    else if (buttonId === 'next_song') {
-      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-      await reply("💫 තවත් slowed song එකක් load වෙමින්...");
-      await sendSinhalaSong(conn, from, reply, randomStyle);
-    }
-
-    // 👑 Owner Info
-    else if (buttonId === 'owner_info') {
-      const vcard = `
-BEGIN:VCARD
-VERSION:3.0
-FN:👑 Pahasara Bot Owner
-ORG:ZANTA-XMD BOT;
-TEL;type=CELL;type=VOICE;waid=94760264995:+94 76 026 4995
-END:VCARD`.trim();
-
-      await conn.sendMessage(from, {
-        contacts: { displayName: "👑 Pahasara Bot Owner", contacts: [{ vcard }] },
-      });
-      await reply("👑 Owner contact shared!");
-    }
-
-    // 📢 Follow Channel
-    else if (buttonId === 'follow_channel') {
-      await conn.sendMessage(from, {
-        text: "📢 Follow our official WhatsApp Channel for more Sinhala slowed songs:\n👉 https://whatsapp.com/channel/0029Vb4F314CMY0OBErLlV2M",
-      });
-    }
-
-  } catch (err) {
-    console.error(err);
-    reply("⚠️ Button click එකට error එකක් ඇති!");
+  if (buttonId.startsWith('play_sad_')) {
+    const query = decodeURIComponent(buttonId.replace('play_sad_', ''));
+    await playSong(conn, from, reply, query + ' sinhala sad slowed reverb song');
+  }
+  if (buttonId.startsWith('play_love_')) {
+    const query = decodeURIComponent(buttonId.replace('play_love_', ''));
+    await playSong(conn, from, reply, query + ' sinhala love slowed reverb song');
+  }
+  if (buttonId === 'switch_love') {
+    await sendPlaylist(conn, from, reply, 'love');
+  }
+  if (buttonId === 'switch_sad') {
+    await sendPlaylist(conn, from, reply, 'sad');
   }
 });
 
-// 🎵 .song Command
+// 🎶 .song — choose mood + voice note version
 cmd({
   pattern: "song",
-  desc: "Play Sinhala slowed song with effects & buttons",
+  desc: "Play Sinhala slowed song (Sad ❤️ Love)",
   category: "music",
-  filename: __filename,
+  filename: __filename
 }, async (conn, mek, m, { args, reply, from }) => {
   const query = args.join(" ");
   if (!query) return reply("🎵 කරුණාකර සිංදුවේ නම type කරන්න (උදා: *.song Pahasara*)");
 
-  await reply("🎧 Song එක load වෙමින් පවතී...");
-  await sendSinhalaSong(conn, from, reply, query + " sinhala slowed reverb song");
-});
-
-// 🎶 .playlist Command
-cmd({
-  pattern: "playlist",
-  desc: "Show Sinhala slowed playlist",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply, from }) => {
-  const playlist = [
-    { name: "Pahasara Obe Adare", query: "Pahasara Obe Adare slowed reverb sinhala song" },
-    { name: "Sudu", query: "Sudu slowed reverb sinhala song" },
-    { name: "Oba Mage", query: "Oba Mage slowed reverb sinhala song" },
-    { name: "Manike Mage Hithe", query: "Manike Mage Hithe slowed reverb sinhala song" },
-    { name: "Sanda Thaniye", query: "Sanda Thaniye slowed reverb sinhala song" },
+  const buttons = [
+    { buttonId: `play_sad_${encodeURIComponent(query)}`, buttonText: { displayText: "😢 Play Sad Version" }, type: 1 },
+    { buttonId: `play_love_${encodeURIComponent(query)}`, buttonText: { displayText: "❤️ Play Love Version" }, type: 1 },
+    { buttonId: "switch_love", buttonText: { displayText: "🔁 Open Playlist" }, type: 1 },
   ];
 
-  const buttons = playlist.map((song, i) => ({
-    buttonId: `play_song_list_${encodeURIComponent(song.query)}`,
-    buttonText: { displayText: `🎧 ${song.name}` },
-    type: 1,
-  }));
-
   await conn.sendMessage(from, {
-    text: "🎵 *Top Sinhala Slowed Playlist* 🇱🇰\n\nSelect a song to play 👇",
-    footer: "🔥 Sinhala Vibe Collection",
+    text: `🎧 Sinhala Slowed Reverb Song Finder 🇱🇰\n\n🎶 *${query}*\nMood එක තෝරන්න 👇`,
+    footer: "ZANTA-XMD Dual Mood Player",
     buttons,
     headerType: 1
   });
-});
-
-// 🎧 Handle Playlist Song Buttons
-cmd({
-  onButton: true
-}, async (conn, mek, m, { buttonId, reply, from }) => {
-  if (buttonId.startsWith("play_song_list_")) {
-    const query = decodeURIComponent(buttonId.replace("play_song_list_", ""));
-    await reply(`🎧 *${query.split(' ')[0]}* slowed song එක සකස් වෙමින්...`);
-    await sendSinhalaSong(conn, from, reply, query);
-  }
 });
