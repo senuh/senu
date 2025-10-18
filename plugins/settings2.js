@@ -1,122 +1,81 @@
 const { cmd } = require('../lib/command')
 const config = require('../settings')
+const { get_set, input_set } = require('../lib/set_db')
+const { getBuffer } = require('../lib/functions')
+const fs = require('fs')
+
+var BOTOW = config.LANG === 'SI' ? "ඔබ Bot's හිමිකරු හෝ උපපරිපාලක නොවේ !" : "You are not bot's owner or moderator !"
 
 cmd({
-    pattern: "settings",
-    react: "⚙️",
-    desc: "Display full settings list menu",
-    category: "main",
-    use: '.settings',
-    filename: __filename
-}, async (conn, mek, m, { from, isMe, reply }) => {
-    try {
-        if (!isMe) return reply(config.LANG === 'SI' ? "*ඔබ Bot හිමිකරු නොවේ!*" : "*You are not the bot owner!*")
+  pattern: "settings2",
+  react: "⚙️",
+  desc: "Bot full settings control panel",
+  category: "main",
+  filename: __filename
+},
+async (conn, mek, m, { from, reply, isMe, prefix }) => {
+  try {
+    if (!isMe) return reply(BOTOW)
 
-        const sections = [
-            {
-                title: "🧩 BOT CONTROL",
-                rows: [
-                    { title: "🤖 Private Mode ON", rowId: ".onlygroup on" },
-                    { title: "🌐 Public Mode OFF", rowId: ".onlygroup off" },
-                    { title: "🛑 Disable PM", rowId: ".disablepm on" },
-                    { title: "✅ Enable PM", rowId: ".disablepm off" },
-                ]
-            },
-            {
-                title: "🎛️ AUTO FEATURES",
-                rows: [
-                    { title: "💬 Auto Reply ON", rowId: ".autoreply on" },
-                    { title: "💬 Auto Reply OFF", rowId: ".autoreply off" },
-                    { title: "🖼️ Auto Sticker ON", rowId: ".autosticker on" },
-                    { title: "🖼️ Auto Sticker OFF", rowId: ".autosticker off" },
-                    { title: "🎤 Auto Voice ON", rowId: ".autovoice on" },
-                    { title: "🎤 Auto Voice OFF", rowId: ".autovoice off" },
-                    { title: "📜 Auto Bio ON", rowId: ".autobio on" },
-                    { title: "📜 Auto Bio OFF", rowId: ".autobio off" },
-                    { title: "📲 Auto Status ON", rowId: ".autostatus on" },
-                    { title: "📲 Auto Status OFF", rowId: ".autostatus off" },
-                ]
-            },
-            {
-                title: "🧠 AI FEATURES",
-                rows: [
-                    { title: "🤖 AI Chatbot ON", rowId: ".aichatbot on" },
-                    { title: "🤖 AI Chatbot OFF", rowId: ".aichatbot off" },
-                    { title: "🧮 Maths AI ON", rowId: ".mathsai on" },
-                    { title: "🧮 Maths AI OFF", rowId: ".mathsai off" },
-                    { title: "🎨 AI Image ON", rowId: ".aiimage on" },
-                    { title: "🎨 AI Image OFF", rowId: ".aiimage off" },
-                ]
-            },
-            {
-                title: "🚫 PROTECTION SETTINGS",
-                rows: [
-                    { title: "🔗 Anti Link ON", rowId: ".antilink on" },
-                    { title: "🔗 Anti Link OFF", rowId: ".antilink off" },
-                    { title: "💀 Anti Bad ON", rowId: ".antibad on" },
-                    { title: "💀 Anti Bad OFF", rowId: ".antibad off" },
-                    { title: "🗑️ Anti Delete ON", rowId: ".antidelete on" },
-                    { title: "🗑️ Anti Delete OFF", rowId: ".antidelete off" },
-                    { title: "📞 Anti Call ON", rowId: ".anticall on" },
-                    { title: "📞 Anti Call OFF", rowId: ".anticall off" },
-                    { title: "🤖 Anti Bot ON", rowId: ".antibot on" },
-                    { title: "🤖 Anti Bot OFF", rowId: ".antibot off" },
-                ]
-            },
-            {
-                title: "👋 WELCOME / STATUS",
-                rows: [
-                    { title: "👋 Auto Welcome ON", rowId: ".autowelcome on" },
-                    { title: "👋 Auto Welcome OFF", rowId: ".autowelcome off" },
-                    { title: "🪪 Welcome Msg ON", rowId: ".welcome on" },
-                    { title: "🪪 Welcome Msg OFF", rowId: ".welcome off" },
-                ]
-            },
-            {
-                title: "⚡ REACTIONS / OWNER SETTINGS",
-                rows: [
-                    { title: "👑 Owner React ON", rowId: ".oreact on" },
-                    { title: "👑 Owner React OFF", rowId: ".oreact off" },
-                    { title: "😎 Auto React ON", rowId: ".autoreact on" },
-                    { title: "😎 Auto React OFF", rowId: ".autoreact off" },
-                    { title: "🕒 CMD Read ON", rowId: ".cmdread on" },
-                    { title: "🕒 CMD Read OFF", rowId: ".cmdread off" },
-                ]
-            },
-            {
-                title: "🔐 MODE SETTINGS",
-                rows: [
-                    { title: "👥 Only Group Mode ON", rowId: ".onlygroup on" },
-                    { title: "👥 Only Group Mode OFF", rowId: ".onlygroup off" },
-                    { title: "🙋 Only Me Mode ON", rowId: ".onlyme on" },
-                    { title: "🙋 Only Me Mode OFF", rowId: ".onlyme off" },
-                    { title: "⚙️ Button Mode ON", rowId: ".mode on" },
-                    { title: "⚙️ Button Mode OFF", rowId: ".mode off" },
-                ]
-            },
-            {
-                title: "📡 SYSTEM OPTIONS",
-                rows: [
-                    { title: "🧾 View Current Status", rowId: ".status" },
-                    { title: "📚 Main Menu", rowId: ".menu" },
-                    { title: "⚡ Bot Speed", rowId: ".ping" },
-                ]
-            }
-        ]
+    const settings = [
+      { name: "Auto Voice", cmd: "autovoice" },
+      { name: "Auto Sticker", cmd: "autosticker" },
+      { name: "Auto Reply", cmd: "autoreply" },
+      { name: "Auto Bio", cmd: "autobio" },
+      { name: "Auto Status View", cmd: "autostatus" },
+      { name: "Auto Typing", cmd: "autotyping" },
+      { name: "Auto Recording", cmd: "autorecording" },
+      { name: "Auto Read", cmd: "autoread" },
+      { name: "Auto React", cmd: "autoreact" },
+      { name: "Always Online", cmd: "alwaysonline" },
+      { name: "Auto Block", cmd: "autoblock" },
+      { name: "Auto Welcome", cmd: "autowelcome" },
+      { name: "Anti Bot", cmd: "antibot" },
+      { name: "Anti Link", cmd: "antilink" },
+      { name: "Anti Bad", cmd: "antibad" },
+      { name: "Anti Delete", cmd: "antidelete" },
+      { name: "Anti Call", cmd: "anticall" },
+      { name: "AI Image", cmd: "aiimage" },
+      { name: "AI ChatBot", cmd: "aichatbot" },
+      { name: "AI Maths", cmd: "mathsai" },
+      { name: "Welcome", cmd: "welcome" },
+      { name: "Owner React", cmd: "oreact" },
+      { name: "Cmd Read", cmd: "cmdread" },
+      { name: "Only Group", cmd: "onlygroup" },
+      { name: "Only Me", cmd: "onlyme" },
+      { name: "Mode", cmd: "mode" },
+    ]
 
-        const listMessage = {
-            text: `⚙️ *ZANTA-XMD SETTINGS PANEL*  
-Select a setting from the list below to turn ON or OFF.`,
-            footer: config.FOOTER || "ZANTA-XMD BOT SYSTEM",
-            title: "👨‍💻 *Full Settings Control Menu*",
-            buttonText: "📜 Open Settings List",
-            sections
+    let caption = `⚙️ *ZANTA-XMD SETTINGS PANEL*\n\n_Select a setting below and choose ON/OFF._\n\n👨‍💻 Powered by Mr Suranga | MOD-Z`
+
+    // බටන් arrays
+    const buttons = settings.map(s => ({
+      title: s.name,
+      rows: [
+        {
+          title: `${s.name} ON ✅`,
+          id: `${prefix}${s.cmd} on`
+        },
+        {
+          title: `${s.name} OFF ❌`,
+          id: `${prefix}${s.cmd} off`
         }
+      ]
+    }))
 
-        await conn.sendMessage(from, listMessage, { quoted: mek })
-
-    } catch (e) {
-        console.log(e)
-        reply("*Error while opening list settings menu!*")
+    const msg = {
+      image: { url: config.LOGO },
+      caption,
+      footer: config.FOOTER,
+      title: '🧠 Bot Configuration Menu',
+      buttonText: '📜 Open Settings',
+      sections: buttons
     }
+
+    await conn.replyList(from, msg, { quoted: mek })
+
+  } catch (e) {
+    console.log(e)
+    reply('⚠️ Error while loading settings!')
+  }
 })
