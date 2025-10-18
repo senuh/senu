@@ -8,13 +8,10 @@ const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 // ====== Global Variables ======
-let autoSongIntervals = {}; // per-chat auto mode
-let autoTrendInterval = null; // trending playlist updater
-let playedSongs = {}; // prevent duplicate songs
-
-// ====== Auto React Feature ======
+let autoSongIntervals = {};
+let playedSongs = {};
 let autoReactEnabled = true; // default ON
-const reactEmoji = "🎧"; // emoji for auto react
+const OWNER_JID = "947XXXXXXXX@s.whatsapp.net"; // <-- replace with your number
 
 // ====== Sinhala Song Styles ======
 const styles = [
@@ -51,22 +48,16 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// ====== Sinhala Song Sender ======
-async function sendSinhalaSong(conn, jid, reply, query, m) {
+async function sendSinhalaSong(conn, jid, reply, query) {
   try {
     const search = await yts(query);
-    const video = search.videos.find(v => {
-      const t = v.timestamp.split(':').map(Number);
-      const seconds = t.length === 3 ? t[0]*3600 + t[1]*60 + t[2] : t[0]*60 + t[1];
-      return seconds <= 480;
-    });
+    const video = search.videos.find(v => v.seconds <= 480);
     if (!video) return reply("😭 No suitable song found.");
 
-    // prevent duplicates
-    if (!playedSongs[jid]) playedSongs[jid] = new Set();  
-    if (playedSongs[jid].has(video.videoId)) return sendSinhalaSong(conn, jid, reply, query, m);  
-    playedSongs[jid].add(video.videoId);  
-    if (playedSongs[jid].size > 20) playedSongs[jid].clear();  
+    if (!playedSongs[jid]) playedSongs[jid] = new Set();
+    if (playedSongs[jid].has(video.videoId)) return sendSinhalaSong(conn, jid, reply, query);
+    playedSongs[jid].add(video.videoId);
+    if (playedSongs[jid].size > 20) playedSongs[jid].clear();
 
     const caption = `🎶 *${video.title}* 🎶
 
@@ -74,47 +65,43 @@ async function sendSinhalaSong(conn, jid, reply, query, m) {
 🎧 Use headphones for best vibe
 ⚡ Powered by ZANTA-XMD BOT`;
 
-    await conn.sendMessage(jid, {  
-      image: { url: video.thumbnail },  
-      caption,  
-      footer: "🎵 Sinhala Vibe Menu",  
-      buttons: [  
-        { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },  
-        { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },  
-        { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here Menu" }, type: 1 },  
-      ],  
-      headerType: 4,  
-    });  
+    const msg = await conn.sendMessage(jid, {
+      image: { url: video.thumbnail },
+      caption,
+      footer: "🎵 Sinhala Vibe Menu",
+      buttons: [
+        { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
+        { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+        { buttonId: ".clickhere", buttonText: { displayText: "🎛 Music Settings" }, type: 1 },
+      ],
+      headerType: 4,
+    });
 
-    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;  
-    const { data } = await axios.get(apiUrl);  
-
-    if (!data.status || !data.result?.download) return reply("⚠️ Couldn't fetch mp3 link.");  
-
-    const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;  
-    const mp3Path = path.join(__dirname, `${unique}.mp3`);  
-    const opusPath = path.join(__dirname, `${unique}.opus`);  
-
-    await downloadFile(data.result.download, mp3Path);  
-    await convertToOpus(mp3Path, opusPath);  
-
-    await conn.sendMessage(jid, {  
-      audio: fs.readFileSync(opusPath),  
-      mimetype: "audio/ogg; codecs=opus",  
-      ptt: true,  
-    });  
-
-    // === Auto React ===
-    if (autoReactEnabled && m?.key) {
-      try {
-        await conn.sendMessage(jid, { react: { text: reactEmoji, key: m.key } });
-      } catch (e) {
-        console.error("Auto react failed:", e);
-      }
+    // ✅ Auto react to bot's own message only
+    if (autoReactEnabled) {
+      await conn.sendMessage(jid, { react: { text: "😍", key: msg.key } });
     }
 
-    try { fs.unlinkSync(mp3Path); } catch {}  
-    try { fs.unlinkSync(opusPath); } catch {}
+    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
+    const { data } = await axios.get(apiUrl);
+
+    if (!data.status || !data.result?.download) return reply("⚠️ Couldn't fetch mp3 link.");
+
+    const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const mp3Path = path.join(__dirname, `${unique}.mp3`);
+    const opusPath = path.join(__dirname, `${unique}.opus`);
+
+    await downloadFile(data.result.download, mp3Path);
+    await convertToOpus(mp3Path, opusPath);
+
+    await conn.sendMessage(jid, {
+      audio: fs.readFileSync(opusPath),
+      mimetype: "audio/ogg; codecs=opus",
+      ptt: true,
+    });
+
+    try { fs.unlinkSync(mp3Path); } catch { }
+    try { fs.unlinkSync(opusPath); } catch { }
 
   } catch (err) {
     console.error("Send error:", err);
@@ -122,10 +109,10 @@ async function sendSinhalaSong(conn, jid, reply, query, m) {
   }
 }
 
-// ====== Sinhala Voice Auto Mode ======
+// ====== Sinhala Auto Mode ======
 cmd({
   pattern: "sinhalavoice",
-  desc: "Auto Sinhala slowed songs with buttons",
+  desc: "Auto Sinhala slowed songs every 10 minutes",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
@@ -134,23 +121,23 @@ cmd({
   if (autoSongIntervals[jid]) return reply("🟡 Auto Sinhala mode already running!");
 
   await conn.sendMessage(jid, {
-    text: "🎧 *Auto Sinhala Slowed Songs Activated!*\nYou'll get a new Sinhala slowed song every 20 minutes.\nUse the menu below to control playback 👇",
+    text: "🎧 *Auto Sinhala Slowed Songs Activated!*\nYou'll get a new Sinhala slowed song every 10 minutes.\nUse the menu below to control playback 👇",
     footer: "🎵 Sinhala Vibe Menu",
     buttons: [
       { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
       { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
-      { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here Menu" }, type: 1 },
+      { buttonId: ".clickhere", buttonText: { displayText: "🎛 Music Settings" }, type: 1 },
     ],
     headerType: 4,
   });
 
   const sendRandom = async () => {
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-    await sendSinhalaSong(conn, jid, reply, randomStyle, m);
+    await sendSinhalaSong(conn, jid, reply, randomStyle);
   };
 
   await sendRandom();
-  autoSongIntervals[jid] = setInterval(sendRandom, 20 * 60 * 1000);
+  autoSongIntervals[jid] = setInterval(sendRandom, 10 * 60 * 1000); // every 10 min
 });
 
 // ====== Next Song ======
@@ -161,9 +148,9 @@ cmd({
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   const jid = m.chat;
-  reply("✅ Loading next Sinhala slowed song...");
+  reply("✅ *Loading next Sinhala slowed song...* 🎧");
   const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-  await sendSinhalaSong(conn, jid, reply, randomStyle, m);
+  await sendSinhalaSong(conn, jid, reply, randomStyle);
 });
 
 // ====== Stop Auto Sinhala ======
@@ -180,25 +167,24 @@ cmd({
   reply("🛑 Auto Sinhala slowed songs stopped.");
 });
 
-// ====== Click Here Menu ======
+// ====== 🎛 Music Settings ======
 cmd({
   pattern: "clickhere",
-  desc: "Open Sinhala slowed song playlist menu",
+  desc: "Open Sinhala slowed song settings menu",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m) => {
   const jid = m.chat;
 
   await conn.sendMessage(jid, {
-    text: "📀 Choose your Sinhala Slowed Vibe 🎧\nSelect a style below 👇",
-    footer: "🎵 Sinhala Style Playlist Menu",
+    text: "🎛 *Music Settings Panel* 🎶\n\nCustomize your Sinhala Slowed Song Experience 👇",
+    footer: "🎵 Sinhala Music Control Menu",
     buttons: [
       { buttonId: ".style love", buttonText: { displayText: "💞 Love Slowed" }, type: 1 },
       { buttonId: ".style sad", buttonText: { displayText: "😢 Sad Vibe" }, type: 1 },
       { buttonId: ".style mashup", buttonText: { displayText: "🎧 Mashup Reverb" }, type: 1 },
       { buttonId: ".style teledrama", buttonText: { displayText: "📺 Teledrama Song" }, type: 1 },
       { buttonId: ".style 2024", buttonText: { displayText: "⚡ 2024 Trend" }, type: 1 },
-      { buttonId: ".trendinglist", buttonText: { displayText: "🔥 Trending Playlist" }, type: 1 },
       { buttonId: ".autoreact on", buttonText: { displayText: "⚙️ Auto React ON" }, type: 1 },
       { buttonId: ".autoreact off", buttonText: { displayText: "🛑 Auto React OFF" }, type: 1 },
     ],
@@ -215,61 +201,26 @@ cmd({
 }, async (conn, mek, m, { args, reply }) => {
   const jid = m.chat;
   const type = args.join(" ").toLowerCase() || "sinhala slowed song";
-  reply(`🎵 Loading ${type}...`);
-  await sendSinhalaSong(conn, jid, reply, type, m);
+  reply(`🎵 Loading *${type}* ...`);
+  await sendSinhalaSong(conn, jid, reply, type);
 });
 
-// ====== Auto React Toggle (Owner Only) ======
+// ====== Auto React Control (Owner Only) ======
 cmd({
   pattern: "autoreact",
-  desc: "Enable or disable auto react for Sinhala songs (Owner only)",
+  desc: "Turn Sinhala song auto-react ON or OFF (owner only)",
   category: "owner",
   filename: __filename,
-}, async (conn, mek, m, { reply, isCreator, args }) => {
-  if (!isCreator) return reply("⚠️ Only the *Owner* can toggle auto react.");
-
-  const choice = args[0]?.toLowerCase();
-  if (!choice || !["on", "off"].includes(choice)) {
-    return reply(`⚙️ *Auto React Status:* ${autoReactEnabled ? "✅ ON" : "❌ OFF"}\n\nUse:\n.autoreact on\n.autoreact off`);
-  }
-
-  autoReactEnabled = choice === "on";
-  reply(`🎵 Auto React has been *${autoReactEnabled ? "Enabled ✅" : "Disabled ❌"}*`);
-});
-
-// ====== Trending Playlist ======
-cmd({
-  pattern: "trendinglist",
-  desc: "Show trending Sinhala slowed/reverb songs",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const jid = m.chat;
-  reply("📡 Fetching latest trending Sinhala slowed songs...");
-
-  try {
-    const search = await yts("sinhala slowed reverb song");
-    const trending = search.videos.filter(v => v.seconds < 480).slice(0, 8);
-
-    if (!trending.length) return reply("😔 No trending Sinhala songs found right now.");  
-
-    let msg = "🔥 *Trending Sinhala Slowed/Reverb Songs* 🔥\n\n";  
-    trending.forEach((v, i) => {  
-      msg += `🎵 *${i + 1}. ${v.title}*\n📺 https://youtu.be/${v.videoId}\n\n`;  
-    });  
-    msg += "⚡ Choose one by copying the link or use `.style trend` to play a random trending one.";  
-
-    await conn.sendMessage(jid, {  
-      text: msg,  
-      footer: "🎶 Auto-updated playlist (YouTube trending)",  
-      buttons: [  
-        { buttonId: ".style trend", buttonText: { displayText: "🎧 Play Trending Song" }, type: 1 },  
-        { buttonId: ".clickhere", buttonText: { displayText: "📀 Back to Menu" }, type: 1 },  
-      ],  
-      headerType: 4,  
-    });
-  } catch (err) {
-    console.error(err);
-    reply("❌ Error while fetching trending list.");
+}, async (conn, mek, m, { args, reply }) => {
+  if (m.sender !== OWNER_JID) return reply("⚠️ Only the bot owner can use this command.");
+  const action = args[0]?.toLowerCase();
+  if (action === "on") {
+    autoReactEnabled = true;
+    reply("✅ Auto React has been *enabled*.");
+  } else if (action === "off") {
+    autoReactEnabled = false;
+    reply("🛑 Auto React has been *disabled*.");
+  } else {
+    reply("⚙️ Use: `.autoreact on` or `.autoreact off`");
   }
 });
