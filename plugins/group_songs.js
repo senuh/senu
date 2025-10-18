@@ -12,7 +12,7 @@ ffmpeg.setFfmpegPath(ffmpegPath);
 let autoSongIntervals = {};
 let playedSongs = {};
 let lastQueryPerChat = {};
-const OWNER_JID = "94760264995@s.whatsapp.net"; // <-- Replace with your number
+const OWNER_JID = "94760264995@s.whatsapp.net";
 
 const styles = [
   "sinhala slowed reverb song",
@@ -49,39 +49,21 @@ async function convertToOpus(inputPath, outputPath) {
 //================= MOOD DETECTION =================
 function detectMood(text) {
   text = text.toLowerCase();
-  if (text.includes("sad") || text.includes("broken") || text.includes("lonely")) return "sad";
+  if (text.includes("sad") || text.includes("broken") || text.includes("alone")) return "sad";
   if (text.includes("love") || text.includes("heart") || text.includes("romantic")) return "love";
-  if (text.includes("vibe") || text.includes("slow") || text.includes("chill")) return "vibe";
-  if (text.includes("party") || text.includes("beat") || text.includes("mashup")) return "party";
+  if (text.includes("chill") || text.includes("slow") || text.includes("relax")) return "chill";
+  if (text.includes("party") || text.includes("dance") || text.includes("beat")) return "party";
+  if (text.includes("vibe") || text.includes("slowed")) return "vibe";
   return "default";
 }
 
-const moodStyles = {
-  sad: {
-    emoji: "🥀",
-    footer: "🖤 Sad Vibe Mode • ZANTA-XMD BOT",
-    sticker: "https://i.ibb.co/6sxHn8V/sadvibe.webp",
-  },
-  love: {
-    emoji: "💞",
-    footer: "💘 Love Mood • ZANTA-XMD BOT",
-    sticker: "https://i.ibb.co/pzfMG1K/lovemood.webp",
-  },
-  vibe: {
-    emoji: "🌙",
-    footer: "🎧 Chill Vibe Mode • ZANTA-XMD BOT",
-    sticker: "https://i.ibb.co/Y2k6JcN/musicvibe.webp",
-  },
-  party: {
-    emoji: "🎉",
-    footer: "⚡ Party Energy • ZANTA-XMD BOT",
-    sticker: "https://i.ibb.co/MsK4VNG/partybeat.webp",
-  },
-  default: {
-    emoji: "🎶",
-    footer: "🎵 Sinhala Vibe Menu • ZANTA-XMD BOT",
-    sticker: "https://i.ibb.co/sVKr0fj/defaultvibe.webp",
-  },
+const moodStickers = {
+  sad: "https://i.ibb.co/6sxHn8V/sadvibe.webp",
+  love: "https://i.ibb.co/pzfMG1K/lovemood.webp",
+  chill: "https://i.ibb.co/7b1pD7b/chillvibe.webp",
+  party: "https://i.ibb.co/MsK4VNG/partybeat.webp",
+  vibe: "https://i.ibb.co/Y2k6JcN/musicvibe.webp",
+  default: "https://i.ibb.co/sVKr0fj/defaultvibe.webp",
 };
 
 //================= MAIN SONG FUNCTION =================
@@ -97,29 +79,26 @@ async function sendSinhalaSong(conn, jid, reply, query) {
     playedSongs[jid].add(video.videoId);
     if (playedSongs[jid].size > 20) playedSongs[jid].clear();
 
-    const mood = detectMood(video.title);
-    const moodSet = moodStyles[mood] || moodStyles.default;
+    const mood = detectMood(video.title || query);
+    const caption = `🎶 *${video.title}* 🎶
 
-    const caption = `${moodSet.emoji} *${video.title}* ${moodSet.emoji}
-
-💆‍♂️ සිංහල Mind Relaxing Song
+💆‍♂️ සිංහල Mind Relaxing Song (${mood.toUpperCase()} mode)
 🎧 හොඳ vibe එකක් දැනගන්න Headphones එකක් අනිවාර්යයි!
 ⚡ Powered by ZANTA-XMD BOT`;
 
     await conn.sendMessage(jid, {
       image: { url: video.thumbnail },
       caption,
-      footer: moodSet.footer,
+      footer: "🎵 Sinhala Vibe Menu",
       buttons: [
         { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
-        { buttonId: ".groupsong", buttonText: { displayText: "👥 Group Auto Mode" }, type: 1 },
+        { buttonId: ".groupsong", buttonText: { displayText: "👥 Group Song Mode" }, type: 1 },
         { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
         { buttonId: ".clickhere", buttonText: { displayText: "🎛 Music Settings" }, type: 1 },
       ],
       headerType: 4,
     });
 
-    // ===== Download & Convert =====
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
     if (!data.status || !data.result?.download) return reply("⚠️ mp3 link එක ගන්න බැරි උනා.");
@@ -131,36 +110,33 @@ async function sendSinhalaSong(conn, jid, reply, query) {
     await downloadFile(data.result.download, mp3Path);
     await convertToOpus(mp3Path, opusPath);
 
-    // 🎤 Send as voice note
     await conn.sendMessage(jid, {
       audio: fs.readFileSync(opusPath),
       mimetype: "audio/ogg; codecs=opus",
       ptt: true,
     });
 
-    // 🧹 Cleanup
-    try { fs.unlinkSync(mp3Path); } catch {}
-    try { fs.unlinkSync(opusPath); } catch {}
-
-    // 🎭 Send Mood Sticker Automatically
+    // 🎨 Auto mood-based sticker
     setTimeout(async () => {
-      await conn.sendMessage(jid, {
-        sticker: { url: moodSet.sticker }
-      });
+      try {
+        await conn.sendMessage(jid, { sticker: { url: moodStickers[mood] || moodStickers.default } });
+      } catch {}
     }, 2000);
 
-    // 💬 Send feedback buttons 3s later
+    fs.unlinkSync(mp3Path);
+    fs.unlinkSync(opusPath);
+
     setTimeout(async () => {
       await conn.sendMessage(jid, {
-        text: `${moodSet.emoji} ඔයාට මේ සින්දුව කොහොමද?`,
-        footer: moodSet.footer,
+        text: `💬 ඔයාට මේ සින්දුව කොහොමද? 🎧`,
+        footer: "⚡ Powered by ZANTA-XMD BOT",
         buttons: [
           { buttonId: `.feedback good ${video.title}`, buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
           { buttonId: `.feedback bad ${video.title}`, buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
         ],
         headerType: 4,
       });
-    }, 3000);
+    }, 2500);
 
   } catch (err) {
     console.error("Send error:", err);
@@ -177,7 +153,7 @@ async function sendSinhalaSong(conn, jid, reply, query) {
   }
 }
 
-//================= AUTO SINHALA =================
+//================= AUTO SONG =================
 cmd({
   pattern: "sinhalavoice",
   desc: "Auto Sinhala slowed songs every 10 minutes",
@@ -187,7 +163,7 @@ cmd({
   const jid = m.chat;
   if (autoSongIntervals[jid]) return reply("🟡 Auto Sinhala mode already running!");
   await conn.sendMessage(jid, {
-    text: "🎧 *Auto Sinhala Slowed Songs Activated!*\nඔයාට හැම මිනිත්තු 10කටම නව Sinhala slowed song එකක් ලැබෙනවා.",
+    text: "🎧 *Auto Sinhala Slowed Songs Activated!*\nඔයාට හැම මිනිත්තු 10කටම නව Sinhala slowed song එකක් ලැබෙනවා.\n👇 Control Buttons:",
     footer: "🎵 Sinhala Vibe Menu",
     buttons: [
       { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
@@ -202,24 +178,6 @@ cmd({
   };
   await sendRandom();
   autoSongIntervals[jid] = setInterval(sendRandom, 10 * 60 * 1000);
-});
-
-//================= GROUP AUTO SONG =================
-cmd({
-  pattern: "groupsong",
-  desc: "Activate group auto Sinhala songs mode",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const jid = m.chat;
-  if (autoSongIntervals[jid]) return reply("🟡 Group auto mode already active!");
-  reply("👥 Group Sinhala Auto Song mode activated!");
-  const sendGroup = async () => {
-    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-    await sendSinhalaSong(conn, jid, reply, randomStyle);
-  };
-  await sendGroup();
-  autoSongIntervals[jid] = setInterval(sendGroup, 10 * 60 * 1000);
 });
 
 //================= NEXT SONG =================
@@ -247,6 +205,24 @@ cmd({
   clearInterval(autoSongIntervals[jid]);
   delete autoSongIntervals[jid];
   reply("🛑 Auto Sinhala slowed songs mode එක නවතා දමන ලදි.");
+});
+
+//================= GROUP SONG =================
+cmd({
+  pattern: "groupsong",
+  desc: "Activate Sinhala auto songs in group",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  const jid = m.chat;
+  reply("🎶 Group Sinhala Auto Songs Activated! 💫");
+  const sendRandom = async () => {
+    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+    await sendSinhalaSong(conn, jid, reply, randomStyle);
+  };
+  await sendRandom();
+  if (!autoSongIntervals[jid])
+    autoSongIntervals[jid] = setInterval(sendRandom, 10 * 60 * 1000);
 });
 
 //================= MANUAL SONG SEARCH =================
@@ -285,7 +261,7 @@ cmd({
   }
 });
 
-//================= FEEDBACK SYSTEM =================
+//================= FEEDBACK =================
 cmd({
   pattern: "feedback",
   desc: "Send song feedback to bot owner",
@@ -311,6 +287,6 @@ cmd({
   try {
     await conn.sendMessage(ownerJid, { text: msgText });
   } catch (err) {
-    console.error("Error sending feedback to owner:", err);
+    console.error("Error sending feedback:", err);
   }
 });
