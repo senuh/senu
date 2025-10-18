@@ -1,3 +1,7 @@
+// ==================================================
+// 🎵 Sinhala Slowed Songs Auto Mode (Persistent Version)
+// ==================================================
+
 const { cmd } = require('../lib/command');
 const fs = require('fs');
 const path = require('path');
@@ -7,10 +11,24 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
+// ====== Config File ======
+const configFile = path.join(__dirname, 'interval.json');
+
+// Load saved interval
+let songIntervalMinutes = 10; // default
+try {
+  if (fs.existsSync(configFile)) {
+    const saved = JSON.parse(fs.readFileSync(configFile));
+    if (saved.songIntervalMinutes) songIntervalMinutes = saved.songIntervalMinutes;
+  }
+} catch {
+  songIntervalMinutes = 10;
+}
+
 // ====== Global Variables ======
 let autoSongIntervals = {};
 let playedSongs = {};
-let autoReactEnabled = true; // default ON
+let autoReactEnabled = true;
 const OWNER_JID = "94760264995@s.whatsapp.net"; // <-- replace with your number
 
 // ====== Sinhala Song Styles ======
@@ -77,7 +95,6 @@ async function sendSinhalaSong(conn, jid, reply, query) {
       headerType: 4,
     });
 
-    // ✅ Auto react to bot's own message only
     if (autoReactEnabled) {
       await conn.sendMessage(jid, { react: { text: "😍", key: msg.key } });
     }
@@ -112,7 +129,7 @@ async function sendSinhalaSong(conn, jid, reply, query) {
 // ====== Sinhala Auto Mode ======
 cmd({
   pattern: "sinhalavoice",
-  desc: "Auto Sinhala slowed songs every 10 minutes",
+  desc: "Auto Sinhala slowed songs every few minutes",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
@@ -121,7 +138,7 @@ cmd({
   if (autoSongIntervals[jid]) return reply("🟡 Auto Sinhala mode already running!");
 
   await conn.sendMessage(jid, {
-    text: "🎧 *Auto Sinhala Slowed Songs Activated!*\nYou'll get a new Sinhala slowed song every 10 minutes.\nUse the menu below to control playback 👇",
+    text: `🎧 *Auto Sinhala Slowed Songs Activated!*\nYou'll get a new song every *${songIntervalMinutes} minutes*.\nUse the menu below to control playback 👇`,
     footer: "🎵 Sinhala Vibe Menu",
     buttons: [
       { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
@@ -137,7 +154,7 @@ cmd({
   };
 
   await sendRandom();
-  autoSongIntervals[jid] = setInterval(sendRandom, 10 * 60 * 1000); // every 10 min
+  autoSongIntervals[jid] = setInterval(sendRandom, songIntervalMinutes * 60 * 1000);
 });
 
 // ====== Next Song ======
@@ -167,7 +184,7 @@ cmd({
   reply("🛑 Auto Sinhala slowed songs stopped.");
 });
 
-// ====== 🎛 Music Settings ======
+// ====== 🎛 Music Settings Panel ======
 cmd({
   pattern: "clickhere",
   desc: "Open Sinhala slowed song settings menu",
@@ -177,14 +194,59 @@ cmd({
   const jid = m.chat;
 
   await conn.sendMessage(jid, {
-    text: "🎛 *Music Settings Panel* 🎶\n\nCustomize your Sinhala Slowed Song Experience 👇",
+    text: `🎛 *Music Settings Panel* 🎶\n\nCustomize your Sinhala Slowed Song Experience 👇\n\n⏱️ Current Interval: *${songIntervalMinutes} minutes*`,
     footer: "🎵 Sinhala Music Control Menu",
     buttons: [
       { buttonId: ".autoreact on", buttonText: { displayText: "⚙️ Auto React ON" }, type: 1 },
       { buttonId: ".autoreact off", buttonText: { displayText: "🛑 Auto React OFF" }, type: 1 },
+      { buttonId: ".intervalmenu", buttonText: { displayText: "⏱️ Change Interval" }, type: 1 },
     ],
     headerType: 4,
   });
+});
+
+// ====== Interval Menu (Owner Only) ======
+cmd({
+  pattern: "intervalmenu",
+  desc: "Show interval selection menu (owner only)",
+  category: "owner",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  if (m.sender !== OWNER_JID) return reply("⚠️ Only the bot owner can change intervals.");
+
+  const jid = m.chat;
+
+  await conn.sendMessage(jid, {
+    text: "⏱️ *Select Auto Song Interval (Owner Only)*",
+    footer: "🎵 Sinhala Music Interval Control",
+    buttons: [
+      { buttonId: ".interval 5", buttonText: { displayText: "5 Minutes" }, type: 1 },
+      { buttonId: ".interval 10", buttonText: { displayText: "10 Minutes" }, type: 1 },
+      { buttonId: ".interval 15", buttonText: { displayText: "15 Minutes" }, type: 1 },
+      { buttonId: ".interval 20", buttonText: { displayText: "20 Minutes" }, type: 1 },
+    ],
+    headerType: 4,
+  });
+});
+
+// ====== Interval Command (Owner Only, Save to File) ======
+cmd({
+  pattern: "interval",
+  desc: "Set custom interval for Sinhala song auto mode (owner only)",
+  category: "owner",
+  filename: __filename,
+}, async (conn, mek, m, { args, reply }) => {
+  if (m.sender !== OWNER_JID) return reply("⚠️ Only the bot owner can use this command.");
+  const minutes = parseInt(args[0]);
+  if (!minutes || minutes < 1 || minutes > 60)
+    return reply("⏱️ Please enter a valid number between *1 and 60*.\nExample: `.interval 15`");
+
+  songIntervalMinutes = minutes;
+
+  // ✅ Save to file
+  fs.writeFileSync(configFile, JSON.stringify({ songIntervalMinutes }, null, 2));
+
+  reply(`✅ Auto Sinhala song interval set to *${songIntervalMinutes} minutes*! (Saved permanently)`);
 });
 
 // ====== Style Command ======
