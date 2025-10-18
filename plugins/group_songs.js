@@ -673,274 +673,62 @@ function detectMood(song) {
   return "normal";
 }
 
-//================= FEEDBACK COMMAND =================
+//================= USER FEEDBACK HISTORY (PUBLIC VERSION) =================
 cmd({
-  pattern: "feedback",
-  desc: "Send feedback about a Sinhala song",
+  pattern: "userfeedback",
+  desc: "View any user's feedback history (public access)",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { args, reply }) => {
-  const type = args[0];
-  const songName = args.slice(1).join(" ") || "Unknown Song 🎶";
-  const senderJid = m.sender;
-  const senderNum = senderJid.split("@")[0];
-  const user = m.pushName || senderNum;
-  const ownerJid = "94760264995@s.whatsapp.net";
+  const feedbackDB = loadFeedback();
 
-  if (!["good", "bad"].includes(type)) {
-    return conn.sendMessage(m.chat, {
-      text: "⚠️ වැරදි feedback command එකක්!\n\nUse:\n.feedback good [song name]\n.feedback bad [song name]",
-      footer: "🩷 Sinhala Song Feedback • ZANTA-XMD BOT",
-      buttons: [
-        { buttonId: ".feedback good", buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
-        { buttonId: ".feedback bad", buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
-      ],
-      headerType: 4,
+  // get target number
+  let targetNum = args[0];
+  if (!targetNum) {
+    return reply("📞 කරුණාකර බලන්න ඕන user එකේ number එක දෙන්න!\n\nඋදාහරණය:\n.userfeedback 94761234567");
+  }
+
+  targetNum = targetNum.replace(/[^0-9]/g, ""); // sanitize
+
+  let found = [];
+  for (const [song, data] of Object.entries(feedbackDB)) {
+    data.users.forEach((u) => {
+      if (u.number === targetNum) {
+        found.push({
+          song,
+          reaction: u.reaction,
+          time: u.time,
+        });
+      }
     });
   }
 
-  const db = loadFeedback();
-  if (!db[songName]) db[songName] = { good: 0, bad: 0, users: {} };
-
-  db[songName][type]++;
-  db[songName].users[senderJid] = type;
-  saveFeedback(db);
-
-  const emoji = type === "good" ? "🩷" : "💔";
-  const mood = detectMood(songName);
-
-  await conn.sendMessage(m.chat, {
-    text: `${emoji} *ඔයාගේ අදහස Owner ට යවන ලදි!*\n🌀 *Mood:* ${mood}\n🎶 *Song:* ${songName}`,
-    footer: "🎵 Sinhala Song Feedback • ZANTA-XMD BOT",
-    buttons: [
-      { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 බලන්න - විස්තර" }, type: 1 },
-      { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
-      { buttonId: `.contact owner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
-    ],
-    headerType: 4,
-  });
-
-  await conn.sendMessage(ownerJid, {
-    text: `${emoji} *New Feedback!*\n\n👤 *User:* ${user}\n📞 wa.me/${senderNum}\n🎶 ${songName}\n💬 ${type.toUpperCase()}`,
-  });
-});
-
-//================= VIEW DETAILS =================
-cmd({
-  pattern: "viewdetails",
-  desc: "View song feedback details",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { args }) => {
-  const song = decodeURIComponent(args[0] || "Unknown Song 🎶");
-  const type = args[1] || "unknown";
-  const db = loadFeedback();
-  const songData = db[song] || { good: 0, bad: 0 };
-
-  await conn.sendMessage(m.chat, {
-    text: `🎶 *${song}*\n🩷 ${songData.good} | 💔 ${songData.bad}\n💬 Last Feedback: ${type}`,
-    footer: "🩷 Sinhala Song Feedback",
-  });
-});
-
-//================= VIEW HISTORY =================
-cmd({
-  pattern: "viewhistory",
-  desc: "View all songs feedback summary",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const db = loadFeedback();
-  if (Object.keys(db).length === 0) return reply("📭 තව feedback data එකක් නෑ!");
-
-  let text = "📜 *All Song Feedback History*\n\n";
-  for (const [song, d] of Object.entries(db)) {
-    text += `🎶 *${song}*\n🩷 ${d.good} | 💔 ${d.bad}\n\n`;
+  if (found.length === 0) {
+    return reply(`❌ User wa.me/${targetNum} කිසිම feedback එකක් දුන්නෙ නෑ.`);
   }
+
+  let text = `📜 *User Feedback History*\n\n👤 *User:* wa.me/${targetNum}\n🧾 *Total Feedbacks:* ${found.length}\n━━━━━━━━━━━━━━━\n`;
+
+  found.forEach((f, i) => {
+    const emoji = f.reaction === "good" ? "🩷" : "💔";
+    text += `${i + 1}. ${emoji} *${f.song}*\n🕒 ${f.time}\n\n`;
+  });
+
+  // summary counts
+  const totalGood = found.filter((f) => f.reaction === "good").length;
+  const totalBad = found.filter((f) => f.reaction === "bad").length;
+
+  text += `━━━━━━━━━━━━━━━\n🩷 *Good:* ${totalGood}\n💔 *Bad:* ${totalBad}\n📊 *Overall Rating:* ${((totalGood / (totalGood + totalBad)) * 100).toFixed(1)}%\n`;
 
   await conn.sendMessage(m.chat, {
     text,
-    footer: "🎵 Sinhala Song Feedback",
+    footer: "📜 Sinhala Song Feedback • Public Viewer",
     buttons: [
-      { buttonId: ".topsongs", buttonText: { displayText: "🏆 Top Songs" }, type: 1 },
-      { buttonId: ".topusers", buttonText: { displayText: "👤 Top Users" }, type: 1 },
+      { buttonId: ".viewhistory", buttonText: { displayText: "📜 View All Songs" }, type: 1 },
+      { buttonId: ".feedback good", buttonText: { displayText: "🩷 Give Feedback" }, type: 1 },
+      { buttonId: `.contact user ${targetNum}`, buttonText: { displayText: "📱 Contact User" }, type: 1 },
     ],
     headerType: 4,
-  });
-});
-
-//================= TOP SONGS =================
-cmd({
-  pattern: "topsongs",
-  desc: "Top liked/disliked songs leaderboard",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const db = loadFeedback();
-  if (Object.keys(db).length === 0) return reply("📭 Data නැහැ!");
-
-  const songs = Object.entries(db).map(([name, d]) => ({
-    name,
-    good: d.good,
-    bad: d.bad,
-    total: d.good + d.bad
-  }));
-
-  const topGood = [...songs].sort((a, b) => b.good - a.good).slice(0, 5);
-  const topBad = [...songs].sort((a, b) => b.bad - a.bad).slice(0, 5);
-
-  let text = "🏆 *Top Sinhala Songs Leaderboard*\n\n🩷 *Most Liked:*\n";
-  topGood.forEach((s, i) => text += `${i + 1}. ${s.name} — 🩷 ${s.good} | 💔 ${s.bad}\n`);
-  text += "\n💔 *Most Disliked:*\n";
-  topBad.forEach((s, i) => text += `${i + 1}. ${s.name} — 💔 ${s.bad} | 🩷 ${s.good}\n`);
-
-  await conn.sendMessage(m.chat, { text, footer: "🎵 ZANTA-XMD • Feedback" });
-});
-
-//================= TOP USERS =================
-cmd({
-  pattern: "topusers",
-  desc: "Most active feedback users",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const db = loadFeedback();
-  const stats = {};
-
-  for (const d of Object.values(db)) {
-    for (const [jid, type] of Object.entries(d.users || {})) {
-      if (!stats[jid]) stats[jid] = { good: 0, bad: 0 };
-      if (type === "good") stats[jid].good++;
-      else stats[jid].bad++;
-    }
-  }
-
-  const sorted = Object.entries(stats)
-    .sort((a, b) => (b[1].good + b[1].bad) - (a[1].good + a[1].bad))
-    .slice(0, 10);
-
-  let text = "👤 *Top Feedback Users*\n\n";
-  sorted.forEach(([jid, s], i) => {
-    text += `${i + 1}. wa.me/${jid.split("@")[0]} — 🩷 ${s.good} | 💔 ${s.bad}\n`;
-  });
-
-  await conn.sendMessage(m.chat, { text, footer: "📊 Sinhala Song Feedback" });
-});
-
-//================= CHARTS (SONGS + USERS) =================
-async function generateBarChart(title, labels, data1, data2, label1, label2) {
-  const width = 800, height = 500;
-  const canvas = createCanvas(width, height);
-  const ctx = canvas.getContext("2d");
-
-  ctx.fillStyle = "#101010";
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.fillStyle = "#fff";
-  ctx.font = "26px Sans";
-  ctx.fillText(title, 40, 50);
-
-  const baseY = 420;
-  const barWidth = 30, gap = 80;
-  let x = 100;
-
-  labels.forEach((label, i) => {
-    ctx.fillStyle = "#ff4da6";
-    ctx.fillRect(x, baseY - data1[i] * 5, barWidth, data1[i] * 5);
-
-    ctx.fillStyle = "#ff3333";
-    ctx.fillRect(x + barWidth + 10, baseY - data2[i] * 5, barWidth, data2[i] * 5);
-
-    ctx.fillStyle = "#fff";
-    ctx.font = "14px Sans";
-    ctx.fillText(label.slice(0, 8), x - 10, baseY + 20);
-
-    x += gap;
-  });
-
-  const file = "./chart.png";
-  fs.writeFileSync(file, canvas.toBuffer("image/png"));
-  return file;
-}
-
-cmd({
-  pattern: "chart songs",
-  desc: "Generate song feedback chart",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const db = loadFeedback();
-  const songs = Object.entries(db).slice(0, 6);
-  if (songs.length === 0) return reply("📭 No data!");
-
-  const labels = songs.map(([n]) => n);
-  const good = songs.map(([_, d]) => d.good);
-  const bad = songs.map(([_, d]) => d.bad);
-
-  const file = await generateBarChart("🎵 Top Songs", labels, good, bad, "🩷", "💔");
-  await conn.sendMessage(m.chat, { image: { url: file }, caption: "📊 Sinhala Song Chart" });
-});
-
-cmd({
-  pattern: "chart users",
-  desc: "Generate top users chart",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const db = loadFeedback();
-  const stats = {};
-  for (const d of Object.values(db)) {
-    for (const [jid, type] of Object.entries(d.users || {})) {
-      if (!stats[jid]) stats[jid] = { good: 0, bad: 0 };
-      if (type === "good") stats[jid].good++;
-      else stats[jid].bad++;
-    }
-  }
-
-  const users = Object.entries(stats).slice(0, 6);
-  if (users.length === 0) return reply("😅 තව feedback නෑ!");
-
-  const labels = users.map(([j]) => j.split("@")[0]);
-  const good = users.map(([_, s]) => s.good);
-  const bad = users.map(([_, s]) => s.bad);
-
-  const file = await generateBarChart("👤 Top Users", labels, good, bad, "🩷", "💔");
-  await conn.sendMessage(m.chat, { image: { url: file }, caption: "📊 Top Users Activity Chart" });
-});
-
-//================= AUTO PDF REPORT =================
-cmd({
-  pattern: "report",
-  desc: "Generate Sinhala Song Feedback Report (PDF)",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply }) => {
-  const db = loadFeedback();
-  if (Object.keys(db).length === 0) return reply("📭 තව data නෑ!");
-
-  const songs = Object.entries(db).map(([song, d]) => ({
-    name: song, good: d.good, bad: d.bad
-  }));
-  const topGood = [...songs].sort((a, b) => b.good - a.good).slice(0, 5);
-  const topBad = [...songs].sort((a, b) => b.bad - a.bad).slice(0, 5);
-
-  const doc = new jsPDF();
-  doc.text("🎵 Sinhala Song Feedback Report", 20, 20);
-  doc.text("🗓️ Date: " + new Date().toLocaleString(), 20, 30);
-  doc.text("🩷 Top Songs:", 20, 45);
-
-  topGood.forEach((s, i) => doc.text(`${i + 1}. ${s.name} — 🩷 ${s.good} | 💔 ${s.bad}`, 30, 55 + i * 10));
-  doc.text("💔 Most Disliked:", 20, 115);
-  topBad.forEach((s, i) => doc.text(`${i + 1}. ${s.name} — 💔 ${s.bad} | 🩷 ${s.good}`, 30, 125 + i * 10));
-
-  const file = `./feedback_report_${Date.now()}.pdf`;
-  doc.save(file);
-
-  await conn.sendMessage(m.chat, {
-    document: { url: file },
-    mimetype: "application/pdf",
-    fileName: "Sinhala_Song_Feedback_Report.pdf",
-    caption: "🧾 Sinhala Song Feedback • Auto PDF Report",
   });
 });
 
