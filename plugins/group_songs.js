@@ -20,7 +20,7 @@ const styles = [
   "sinhala boot slowed song",
 ];
 
-// 🧩 Download file safely
+// 🧩 File Downloader
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -31,7 +31,7 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// 🧩 Convert mp3 → opus
+// 🧩 Convert MP3 → Opus
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -44,7 +44,7 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🧠 Main Sinhala Song Sender
+// 🧠 Send Sinhala Song
 async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
     const search = await yts(query);
@@ -64,6 +64,7 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 
 00:00 ───●────────── ${video.timestamp}`;
 
+    // 📸 Song preview with menu buttons
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
@@ -74,7 +75,7 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
       ],
     });
 
-    // Download and convert
+    // 🎵 Download & Convert
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
 
@@ -87,6 +88,7 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
     await downloadFile(data.result.download, mp3Path);
     await convertToOpus(mp3Path, opusPath);
 
+    // 🎙️ Send voice note
     await conn.sendMessage(targetJid, {
       audio: fs.readFileSync(opusPath),
       mimetype: 'audio/ogg; codecs=opus',
@@ -102,28 +104,44 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
   }
 }
 
-// 🎶 .sinhalavoice — auto mode with bottom menu buttons
+// 🎶 .sinhalavoice Command
 cmd({
   pattern: "sinhalavoice",
-  desc: "Auto Sinhala slowed songs with bottom menu buttons",
+  desc: "Auto Sinhala slowed songs with button controls",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   const targetJid = m.chat;
 
-  await conn.sendMessage(targetJid, {
-    text: `🎧 *Auto Sinhala Slowed Songs Activated!*  
+  // Check for channel
+  const isChannel = !!m.isChannel || (m.key?.remoteJid?.includes('@newsletter'));
+
+  if (autoSongInterval) return reply("🟡 Auto mode already running!");
+
+  if (isChannel) {
+    await conn.sendMessage(targetJid, {
+      text: `🎧 *Auto Sinhala Slowed Songs Activated!*  
+
+You will now get a new Sinhala slowed song every 20 minutes.  
+───────────────
+➡️ To skip: send *Next Song*
+➡️ To stop: send *.stop3*
+───────────────
+🪩 *Channel Mode Active — Buttons Disabled*`,
+    });
+  } else {
+    await conn.sendMessage(targetJid, {
+      text: `🎧 *Auto Sinhala Slowed Songs Activated!*  
 
 You will now get a new Sinhala slowed song every 20 minutes.  
 Use the menu below to control playback 👇`,
-    footer: "🎵 Sinhala Vibe Bot Menu",
-    buttons: [
-      { buttonId: 'next_song', buttonText: { displayText: '🎵 Next Song' }, type: 1 },
-      { buttonId: 'stop_auto', buttonText: { displayText: '⛔ Stop Auto' }, type: 1 },
-    ],
-  });
-
-  if (autoSongInterval) return reply("🟡 Auto mode already running!");
+      footer: "🎵 Sinhala Vibe Bot Menu",
+      buttons: [
+        { buttonId: 'next_song', buttonText: { displayText: '🎵 Next Song' }, type: 1 },
+        { buttonId: 'stop_auto', buttonText: { displayText: '⛔ Stop Auto' }, type: 1 },
+      ],
+    });
+  }
 
   const sendRandom = async () => {
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
@@ -134,7 +152,7 @@ Use the menu below to control playback 👇`,
   autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000);
 });
 
-// 🛑 .stop3 — Stop Auto Mode
+// 🛑 Stop command
 cmd({
   pattern: "stop3",
   desc: "Stop automatic Sinhala slowed songs",
@@ -147,10 +165,12 @@ cmd({
   reply("🛑 Auto Sinhala slowed songs stopped.");
 });
 
-// 🎵 Handle Menu Buttons
+// 🎵 Handle Button Responses
 cmd({
-  on: "button",
+  on: "buttonsResponseMessage",
 }, async (conn, mek, m, { buttonId, reply }) => {
+  console.log("🎯 Button clicked:", buttonId);
+
   if (buttonId === "next_song") {
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
     await sendSinhalaSong(conn, m.chat, reply, randomStyle);
