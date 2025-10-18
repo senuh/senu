@@ -8,6 +8,10 @@ const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
 let autoSongInterval = null;
+let sentSongUrls = new Set();
+
+// 🧑‍💻 Change your owner number here
+const OWNER_NUMBER = "+94760264995";
 
 const styles = [
   "sinhala slowed reverb song",
@@ -20,7 +24,7 @@ const styles = [
   "sinhala boot slowed song",
 ];
 
-// 🧩 Download file safely
+// 🧩 Safe file downloader
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -31,7 +35,7 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// 🧩 Convert mp3 → opus (voice note)
+// 🧩 Convert MP3 → Opus (voice)
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -44,38 +48,7 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🧩 Create circular video note clip
-async function createCircularVideo(thumbnailUrl, audioPath, outputPath) {
-  const thumbPath = path.join(__dirname, 'thumb.jpg');
-  const thumbRes = await axios.get(thumbnailUrl, { responseType: 'arraybuffer' });
-  fs.writeFileSync(thumbPath, Buffer.from(thumbRes.data, 'binary'));
-
-  return new Promise((resolve, reject) => {
-    ffmpeg()
-      .input(thumbPath)
-      .loop(4)
-      .input(audioPath)
-      .complexFilter([
-        'scale=480:480,format=rgba',
-        'crop=480:480',
-        'format=yuv420p',
-      ])
-      .outputOptions([
-        '-t', '4',
-        '-vf', 'scale=480:480:force_original_aspect_ratio=increase,crop=480:480',
-      ])
-      .videoCodec('libx264')
-      .audioCodec('aac')
-      .save(outputPath)
-      .on('end', () => {
-        fs.unlinkSync(thumbPath);
-        resolve();
-      })
-      .on('error', reject);
-  });
-}
-
-// 🧠 Main function
+// 🎵 Main Sinhala song sender
 async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
     const search = await yts(query);
@@ -85,82 +58,82 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
       return seconds <= 480;
     });
 
-    if (!video) return reply("😭 No suitable song found.");
+    if (!video) return reply(`😭 No suitable Sinhala slowed song found.\n\n📞 *Contact Owner:* ${OWNER_NUMBER}`);
 
-    const caption = `*"${video.title}"*
+    // Avoid duplicates
+    if (sentSongUrls.has(video.url)) return sendSinhalaSong(conn, targetJid, reply, query);
+    sentSongUrls.add(video.url);
 
-> 💆‍♂️ ᴍɪɴᴅ ʀᴇʟᴀxɪɴɢ ʙᴇꜱᴛ ꜱᴏɴɢ 💆❤‍🩹
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
+    const caption = `🎵 *${video.title}*
+
+> 💆‍♂️ Mind Relaxing Sinhala Slowed Song 🎧
+▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
 00:00 ───●────────── ${video.timestamp}
-▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬
-> 🎧 Use Headphones for best experience!
-> ⚙️ Powered by Zanta-XMD Bot`;
+▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
+> ❑ Use headphones for best experience 🎧
+> ❑ Powered by ᴢᴀɴᴛᴀ-xᴍᴅ WhatsApp Bot
+> ❑ Owner: ${OWNER_NUMBER}`;
 
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
     });
 
-    // 🧩 Download MP3
-    const apiUrl = `https://api-v2.ytjar.info/api/download?url=${encodeURIComponent(video.url)}&format=mp3`;
+    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
 
-    if (!data.status || !data.data?.audio?.url)
-      return reply("⚠️ Couldn't fetch mp3 link.");
+    if (!data.status || !data.result?.download)
+      return reply(`⚠️ Couldn't fetch mp3 link.\n\n📞 *Contact Owner:* ${OWNER_NUMBER}`);
 
-    const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
-    const opusPath = path.join(__dirname, `${Date.now()}.opus`);
-    const vidPath = path.join(__dirname, `${Date.now()}.mp4`);
-    const mp3Url = data.data.audio.url;
+    const tmpDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tmpDir)) fs.mkdirSync(tmpDir);
 
-    await downloadFile(mp3Url, mp3Path);
+    const mp3Path = path.join(tmpDir, `${Date.now()}.mp3`);
+    const opusPath = path.join(tmpDir, `${Date.now()}.opus`);
+
+    await downloadFile(data.result.download, mp3Path);
     await convertToOpus(mp3Path, opusPath);
 
-    // 🌀 Create circular-style video
-    await createCircularVideo(video.thumbnail, mp3Path, vidPath);
-
-    // 🎙️ Send voice note
+    // 🎙️ Voice note
     await conn.sendMessage(targetJid, {
       audio: fs.readFileSync(opusPath),
       mimetype: 'audio/ogg; codecs=opus',
       ptt: true,
     });
 
-    // 📁 Send MP3
+    // 📁 MP3 file
+    await conn.sendMessage(targetJid, {
+      audio: fs.readFileSync(mp3Path),
+      mimetype: 'audio/mpeg',
+      fileName: `${video.title}.mp3`,
+    });
+
+    // 💽 As Document
     await conn.sendMessage(targetJid, {
       document: fs.readFileSync(mp3Path),
       mimetype: 'audio/mpeg',
       fileName: `${video.title}.mp3`,
     });
 
-    // 🌀 Send circular video note
-    await conn.sendMessage(targetJid, {
-      video: fs.readFileSync(vidPath),
-      mimetype: 'video/mp4',
-      ptt: true,
-      viewOnce: true,
-    });
-
     fs.unlinkSync(mp3Path);
     fs.unlinkSync(opusPath);
-    fs.unlinkSync(vidPath);
 
   } catch (err) {
     console.error("Send error:", err);
-    reply("😭 Something went wrong while sending the song.");
+    reply(`😭 Something went wrong while sending the song.\n\n📞 *Contact Owner:* ${OWNER_NUMBER}`);
   }
 }
 
-// 🎶 .sinhalavoice
+// 🎶 Auto Sinhala slowed songs every 20 minutes
 cmd({
   pattern: "sinhalavoice",
-  desc: "Auto Sinhala slowed songs as voice + circular video note",
+  desc: "Auto Sinhala slowed songs (voice + mp3 + doc every 20 min)",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (autoSongInterval) return reply("🟡 Already running!");
   const targetJid = m.chat;
-  reply("✅ Auto Sinhala slowed songs (🎙️ + 🌀 circular video) started — every 20 minutes.");
+  reply(`✅ Sinhala slowed song auto mode started.\n🎙️ Voice + 📁 MP3 + 💽 Document every 20 minutes.\n\n📞 *Owner:* ${OWNER_NUMBER}`);
 
   const sendRandom = async () => {
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
@@ -171,15 +144,38 @@ cmd({
   autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000);
 });
 
-// ⛔ .stop3
+// ⛔ Stop auto mode
 cmd({
   pattern: "stop3",
-  desc: "Stop auto Sinhala slowed song sending",
+  desc: "Stop Sinhala slowed song auto mode",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   if (!autoSongInterval) return reply("⛔ Auto mode is not running.");
   clearInterval(autoSongInterval);
   autoSongInterval = null;
-  reply("🛑 Auto Sinhala slowed song sending stopped.");
+  reply(`🛑 Sinhala auto song mode stopped.\n📞 *Owner:* ${OWNER_NUMBER}`);
+});
+
+// 👑 .owner command
+cmd({
+  pattern: "owner",
+  desc: "Show bot owner's contact info",
+  category: "general",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  const vcard = `BEGIN:VCARD
+VERSION:3.0
+FN:ZANTA-XMD OWNER
+TEL;type=CELL;type=VOICE;waid=${OWNER_NUMBER.replace('+', '')}:${OWNER_NUMBER}
+END:VCARD`;
+
+  await conn.sendMessage(m.chat, {
+    contacts: {
+      displayName: "ZANTA-XMD OWNER",
+      contacts: [{ vcard }],
+    },
+  });
+
+  reply(`📞 *Bot Owner:* ${OWNER_NUMBER}\n💬 You can message or call the owner directly on WhatsApp.`);
 });
