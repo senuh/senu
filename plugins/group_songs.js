@@ -7,19 +7,17 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// 🔊 Sinhala slowed styles
+// Sinhala song styles
 const styles = [
   "sinhala slowed reverb song",
   "sinhala love slowed song",
   "sinhala vibe slowed song",
   "sinhala sad slowed song",
   "sinhala teledrama slowed song",
-  "sinhala 2024 slowed reverb song",
   "sinhala mashup slowed reverb",
-  "sinhala boot slowed song",
 ];
 
-// 🔹 Download helper
+// Helper functions
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -30,7 +28,6 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// 🔹 Convert mp3 → opus
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -43,114 +40,99 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🔹 Send Sinhala song info + buttons
+// Send Sinhala slowed song info (with Follow button)
 async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
     const search = await yts(query);
-    const videos = search.videos
-      .filter(v => {
-        const time = v.timestamp.split(':').map(Number);
-        const seconds = time.length === 3 ? time[0] * 3600 + time[1] * 60 + time[2] : time[0] * 60 + time[1];
-        return seconds <= 480;
-      })
-      .slice(0, 1);
-
-    if (videos.length === 0) return reply("😢 No Sinhala slowed songs found.");
-
-    const v = videos[0];
+    const v = search.videos[0];
+    if (!v) return reply("😢 ඒ නමින් slowed song එකක් හොයාගන්න බැහැ!");
 
     await conn.sendMessage(targetJid, {
       image: { url: v.thumbnail },
-      caption: `🎵 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> 💆‍♂️ Mind relaxing Sinhala slowed song 🎧\n\n🎧 Use headphones for best experience.`,
+      caption: `🎶 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> Mind relaxing Sinhala slowed reverb song 🎧`,
       footer: "ZANTA-XMD BOT • Powered by Sadiya API",
       buttons: [
-        { buttonId: `.play ${v.url}`, buttonText: { displayText: "▶️ Play Song" }, type: 1 },
         { buttonId: `.nextsong`, buttonText: { displayText: "⏭️ Next Song" }, type: 1 },
-        { buttonId: `.owner`, buttonText: { displayText: "👑 Owner" }, type: 1 },
+        { buttonId: `.owner2`, buttonText: { displayText: "👑 Owner" }, type: 1 },
+        { buttonId: `.followchannel`, buttonText: { displayText: "📢 Follow Us" }, type: 1 },
       ],
       headerType: 4,
     });
-
   } catch (err) {
-    console.error("Send error:", err);
-    reply("😭 Something went wrong while sending Sinhala song info.");
+    console.error(err);
+    reply("⚠️ Error loading Sinhala slowed song info!");
   }
 }
 
-// 🎧 Main song command — default: pahasara
+// 🎵 .song command — ask user for song name
 cmd({
   pattern: "song",
-  desc: "Search Sinhala slowed song manually",
+  desc: "Ask user for Sinhala slowed song name",
   category: "music",
   filename: __filename,
-}, async (conn, mek, m, { reply, args }) => {
-  const query = args.join(" ") || "pahasara slowed reverb sinhala song";
-  await sendSinhalaSong(conn, m.chat, reply, query);
-});
+}, async (conn, mek, m, { reply, from }) => {
+  await reply("🎵 කරුණාකර සිංදුවේ නම එකක් type කරන්න (උදා: *Pahasara*)");
 
-// ▶️ Play song
-cmd({
-  pattern: "play",
-  desc: "Play Sinhala song from YouTube",
-  category: "music",
-  filename: __filename,
-}, async (conn, mek, m, { reply, args }) => {
-  try {
-    const url = args[0];
-    if (!url) return reply("❌ Please provide a YouTube link!");
+  conn.once('message', async (msg) => {
+    if (!msg.message) return;
+    const text = msg.message.conversation || msg.message.extendedTextMessage?.text;
+    if (!text) return;
 
-    const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(url)}&format=mp3&apikey=sadiya`;
-    const { data } = await axios.get(apiUrl);
-
-    if (!data.status || !data.result?.download)
-      return reply("⚠️ Couldn't fetch mp3 link.");
-
-    const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
-    const opusPath = path.join(__dirname, `${Date.now()}.opus`);
-
-    await downloadFile(data.result.download, mp3Path);
-    await convertToOpus(mp3Path, opusPath);
-
-    await conn.sendMessage(m.chat, {
-      audio: fs.readFileSync(opusPath),
-      mimetype: 'audio/ogg; codecs=opus',
-      ptt: true,
-    });
-
-    await conn.sendMessage(m.chat, {
-      document: fs.readFileSync(mp3Path),
-      mimetype: 'audio/mp3',
-      fileName: "Sinhala_Slowed_Song.mp3",
-    });
-
-    fs.unlinkSync(mp3Path);
-    fs.unlinkSync(opusPath);
-
-  } catch (e) {
-    console.error(e);
-    reply("💥 Error while downloading or sending the song!");
-  }
+    await reply("🎧 Song එක load වෙමින් පවතී...");
+    await sendSinhalaSong(conn, from, reply, text + " slowed reverb sinhala song");
+  });
 });
 
 // ⏭️ Next song
 cmd({
   pattern: "nextsong",
-  desc: "Get another random Sinhala slowed song",
+  desc: "Play another Sinhala slowed song",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-  await reply("💫 Loading another Sinhala slowed song...");
+  await reply("💫 තවත් slowed song එකක් load වෙමින්...");
   await sendSinhalaSong(conn, m.chat, reply, randomStyle);
 });
 
-// 👑 Owner contact
+// 👑 Owner2 command
 cmd({
-  pattern: "owner",
-  desc: "Send bot owner's contact",
+  pattern: "owner2",
+  desc: "Send bot owner contact",
   category: "info",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  await conn.sendContact(m.chat, [{ name: "👑 Bot Owner", number: "94760264995" }]);
-  reply("👑 Here’s the owner’s contact!");
+  try {
+    const vcard = `
+BEGIN:VCARD
+VERSION:3.0
+FN:👑 Pahasara Bot Owner
+ORG:ZANTA-XMD BOT;
+TEL;type=CELL;type=VOICE;waid=94760264995:+94 76 026 4995
+END:VCARD
+    `.trim();
+
+    await conn.sendMessage(m.chat, {
+      contacts: {
+        displayName: "👑 Pahasara Bot Owner",
+        contacts: [{ vcard }],
+      },
+    });
+    await reply("👑 Owner contact shared!");
+  } catch (err) {
+    console.error(err);
+    reply("⚠️ Error sending owner contact!");
+  }
+});
+
+// 📢 Follow Channel command
+cmd({
+  pattern: "followchannel",
+  desc: "Send WhatsApp Channel link",
+  category: "info",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  await conn.sendMessage(m.chat, {
+    text: "📢 Follow our official WhatsApp Channel for more Sinhala slowed songs:\n👉 https://whatsapp.com/channel/0029Vb4F314CMY0OBErLlV2M",
+  });
 });
