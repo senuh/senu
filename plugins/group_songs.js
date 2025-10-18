@@ -644,10 +644,12 @@ cmd({
   }
 });
 
-//================= FULL BUTTON FEEDBACK SYSTEM (User DP + Owner Buttons) =================
+//================= FULL FEEDBACK SYSTEM (Sinhala Song Bot) =================
+// 🔰 Developed for ZANTA-XMD by ChatGPT (Custom Sinhala Buttons Edition)
+
 cmd({
   pattern: "feedback",
-  desc: "Send full feedback with buttons + owner notification with buttons & DP",
+  desc: "Send full feedback with buttons + owner notification + user DP",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { args, reply }) => {
@@ -657,8 +659,8 @@ cmd({
   const senderNum = senderJid.split("@")[0];
   const user = m.pushName || senderNum;
   const groupName = m.isGroup ? "👥 Group Chat" : "💬 Private Chat";
-  const ownerJid = "94760264995@s.whatsapp.net"; // 👑 OWNER FIXED HERE
-  const mood = detectMood(songName);
+  const ownerJid = "94760264995@s.whatsapp.net"; // 👑 Fixed Owner Number
+  const mood = detectMood(songName) || "Normal";
 
   if (!["good", "bad"].includes(type)) {
     return conn.sendMessage(m.chat, {
@@ -682,7 +684,7 @@ cmd({
     if (typeof conn.profilePictureUrl === "function") {
       pfpUrl = await conn.profilePictureUrl(senderJid, "image");
     }
-  } catch (e) {
+  } catch {
     pfpUrl = null;
   }
   const fallbackPfp = "https://i.ibb.co/sVKr0fj/defaultvibe.webp";
@@ -693,7 +695,7 @@ cmd({
   const ownerButtons = [
     { buttonId: `.replyuser ${senderNum}`, buttonText: { displayText: "💬 Reply to User" }, type: 1 },
     { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 View Details" }, type: 1 },
-    { buttonId: `.contactuser ${senderNum}`, buttonText: { displayText: "📞 Contact User" }, type: 1 },
+    { buttonId: `.contact user ${senderNum}`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
     { buttonId: `.blockuser ${senderNum}`, buttonText: { displayText: "🚫 Block User" }, type: 1 },
   ];
 
@@ -716,7 +718,7 @@ cmd({
     buttons: [
       { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 බලන්න - විස්තර" }, type: 1 },
       { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
-      { buttonId: `.contactowner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
+      { buttonId: `.contact owner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
       { buttonId: `.stop3`, buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
     ],
     headerType: 4,
@@ -746,12 +748,71 @@ cmd({
     buttons: [
       { buttonId: `.feedback good ${encodeURIComponent(song)}`, buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
       { buttonId: `.feedback bad ${encodeURIComponent(song)}`, buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
-      { buttonId: `.contactowner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
+      { buttonId: `.contact owner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
       { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
     ],
     headerType: 4,
   });
 });
+
+
+//================= CONTACT CARD SYSTEM (User + Owner) =================
+cmd({
+  pattern: "contact",
+  desc: "Send user or owner contact with vCard + buttons",
+  category: "general",
+  filename: __filename,
+}, async (conn, mek, m, { args }) => {
+  const who = args[0]; // 'user' or 'owner'
+  const senderNum = m.sender.split("@")[0];
+  const ownerNum = "94760264995";
+  const userName = m.pushName || senderNum;
+  const ownerName = "👑 Sinhala Song Owner";
+
+  // USER CONTACT
+  if (who === "user") {
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${userName}\nTEL;type=CELL;type=VOICE;waid=${senderNum}:${senderNum}\nEND:VCARD`;
+    await conn.sendMessage(m.chat, {
+      contacts: { displayName: userName, contacts: [{ vcard }] },
+      buttons: [
+        { buttonId: `.feedback good`, buttonText: { displayText: "🩷 Send Feedback" }, type: 1 },
+        { buttonId: `.viewdetails`, buttonText: { displayText: "👤 View Feedback Details" }, type: 1 },
+        { buttonId: `.contact owner`, buttonText: { displayText: "📞 Owner Contact" }, type: 1 },
+      ],
+      footer: "📱 Sinhala Song Bot • User Contact Info",
+      headerType: 1,
+    });
+  }
+
+  // OWNER CONTACT
+  else if (who === "owner") {
+    const vcard = `BEGIN:VCARD\nVERSION:3.0\nFN:${ownerName}\nTEL;type=CELL;type=VOICE;waid=${ownerNum}:${ownerNum}\nEND:VCARD`;
+    await conn.sendMessage(m.chat, {
+      contacts: { displayName: ownerName, contacts: [{ vcard }] },
+      buttons: [
+        { buttonId: `.feedback good`, buttonText: { displayText: "🩷 Send Feedback" }, type: 1 },
+        { buttonId: `.viewdetails`, buttonText: { displayText: "👤 View Feedback Details" }, type: 1 },
+        { buttonId: `.contact user`, buttonText: { displayText: "📱 User Contact" }, type: 1 },
+      ],
+      footer: "👑 Sinhala Song Bot • Owner Contact Info",
+      headerType: 1,
+    });
+  }
+
+  // MENU (NO ARG)
+  else {
+    await conn.sendMessage(m.chat, {
+      text: "⚙️ තෝරන්න ඔබට අවශ්‍ය Contact එක👇",
+      footer: "📞 Sinhala Song Bot • Contact Menu",
+      buttons: [
+        { buttonId: ".contact user", buttonText: { displayText: "📱 User Contact" }, type: 1 },
+        { buttonId: ".contact owner", buttonText: { displayText: "👑 Owner Contact" }, type: 1 },
+      ],
+      headerType: 4,
+    });
+  }
+});
+
 //================= END OF FILE =================
 // Notes:
 // - Save this file as sinhalasong-bot.js inside your ZANTA-XMD commands/plugins folder.
