@@ -34,7 +34,6 @@ async function convertToOpus(inputPath, outputPath) {
 // 🧠 Sinhala song sender (manual search)
 async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
-    // Sinhala slowed/reverb search style එක auto append වෙනවා 🔍
     const fullQuery = `${query} sinhala slowed reverb song`;
     const search = await yts(fullQuery);
 
@@ -60,13 +59,11 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 🎧 Use Headphones for Best Experience
 🎙️ Powered by Zanta-XMD`;
 
-    // Thumbnail send
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
     });
 
-    // 🎵 Download from external API
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
 
@@ -81,7 +78,6 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
       await downloadFile(data.result.download, mp3Path);
       await convertToOpus(mp3Path, opusPath);
 
-      // 🎤 Send as voice note
       await conn.sendMessage(targetJid, {
         audio: fs.readFileSync(opusPath),
         mimetype: 'audio/ogg; codecs=opus',
@@ -98,13 +94,18 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
   }
 }
 
-// 🎵 .song4 — Manual Sinhala slowed/reverb song searcher
+// 🆕 Fixed version of .song4
 cmd({
   pattern: "song4",
   desc: "Search Sinhala slowed/reverb song by name",
   category: "music",
   filename: __filename,
-}, async (conn, mek, m, { text, reply }) => {
+}, async (conn, mek, m, { args, reply }) => {
+
+  // ✅ Fix: get song name properly
+  const text = args && args.length > 0 ? args.join(" ") : "";
+
   if (!text) return reply("🎵 Please enter a song name!\n\n👉 Example: .song4 sanda wage da");
+
   await sendSinhalaSong(conn, m.chat, reply, text);
 });
