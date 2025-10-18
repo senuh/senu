@@ -7,7 +7,9 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-let autoSongIntervals = {}; // ✅ separate interval per chat
+let autoSongIntervals = {};
+let lastSongs = {};
+
 const styles = [
   "sinhala slowed reverb song",
   "sinhala love slowed song",
@@ -45,12 +47,22 @@ async function convertToOpus(inputPath, outputPath) {
 async function sendSinhalaSong(conn, jid, reply, query) {
   try {
     const search = await yts(query);
-    const video = search.videos.find(v => {
+    let videos = search.videos.filter(v => {
       const t = v.timestamp.split(':').map(Number);
       const seconds = t.length === 3 ? t[0]*3600 + t[1]*60 + t[2] : t[0]*60 + t[1];
       return seconds <= 480;
     });
-    if (!video) return reply("😭 No suitable song found.");
+
+    if (!videos.length) return reply("😭 No suitable song found.");
+
+    // avoid repeat
+    const lastId = lastSongs[jid];
+    if (lastId) videos = videos.filter(v => v.videoId !== lastId);
+
+    const video = videos[Math.floor(Math.random() * videos.length)];
+    if (!video) return reply("⚠️ No new song found (duplicates skipped).");
+
+    lastSongs[jid] = video.videoId;
 
     const caption = `🎶 *${video.title}* 🎶
 
@@ -65,6 +77,7 @@ async function sendSinhalaSong(conn, jid, reply, query) {
       buttons: [
         { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
         { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+        { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here" }, type: 1 },
       ],
       headerType: 4,
     });
@@ -115,6 +128,7 @@ Use the menu below to control playback 👇`,
     buttons: [
       { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
       { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+      { buttonId: ".clickhere", buttonText: { displayText: "📀 Click Here" }, type: 1 },
     ],
     headerType: 4,
   });
@@ -152,5 +166,33 @@ cmd({
   if (!autoSongIntervals[jid]) return reply("⚠️ Auto mode not running.");
   clearInterval(autoSongIntervals[jid]);
   delete autoSongIntervals[jid];
+  delete lastSongs[jid];
   reply("🛑 Auto Sinhala slowed songs stopped.");
+});
+
+// ---------------- Click Here Command ----------------
+cmd({
+  pattern: "clickhere",
+  desc: "Show Sinhala slowed playlist",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  const jid = m.chat;
+
+  const playlist = `
+📀 *Sinhala Slowed Vibe Playlist* 🎧
+
+1️⃣ Amaradewa - Sandak Nage (Slowed Reverb)
+2️⃣ Yohani - Manike Mage Hithe (Slowed Remix)
+3️⃣ Bathiya & Santhush - Oba Nisa (Slowed)
+4️⃣ Kasun Kalhara - Ape Game (Reverb Mix)
+5️⃣ Randhir - Sinasenna (Vibe Slowed)
+6️⃣ Wayo - Mage Punchi Rosa Male (Slowed Reverb)
+7️⃣ Sanuka - Adare Tharamata (Slowed Love)
+8️⃣ Yohani - Ithin Adare (Vibe Reverb)
+
+💿 Use *🎵 Next Song* button to play one now!
+`;
+
+  await conn.sendMessage(jid, { text: playlist });
 });
