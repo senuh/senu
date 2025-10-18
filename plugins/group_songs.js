@@ -14,9 +14,6 @@
 const { cmd } = require('../lib/command');
 const fs = require('fs');
 const path = require('path');
-const DB_FILE = "./feedback_db.json";
-const { createCanvas } = require("canvas");
-const { jsPDF } = require("jspdf");
 const axios = require('axios');
 const yts = require('yt-search');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
