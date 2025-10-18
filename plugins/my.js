@@ -7,7 +7,9 @@ const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
 const ffmpeg = require('fluent-ffmpeg');
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// ✅ File downloader
+// ========================
+// 📥 File Downloader
+// ========================
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -18,7 +20,9 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// ✅ Convert mp3 → opus
+// ========================
+// 🎧 Convert mp3 → opus
+// ========================
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -31,7 +35,9 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// ✅ Send Sinhala slowed song preview
+// ========================
+// 🎵 Sinhala Slowed Song Search
+// ========================
 async function sendSinhalaSong(conn, targetJid, reply, query) {
   try {
     const fullQuery = `${query} sinhala slowed reverb song`;
@@ -50,19 +56,20 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 
     const caption = `🎵 *${video.title}*
 
-> 💆‍♂️ ᴍɪɴᴅ ʀᴇʟᴀxɪɴɢ ꜱɪɴʜᴀʟᴀ ꜱᴏɴɢ 💆❤‍🩹
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
+🧘‍♀️ *MIND RELAXING SINHALA SONG* 🧘‍♂️
+💖 Use headphones for best experience 💖
+▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
 00:00 ───●────────── ${video.timestamp}
-▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
-🎧 Use headphones for best experience`;
+▬▭▬▭▬▭▬▭▬▭▬▭▬▭▬
+🎧 Enjoy the vibe...`;
 
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
       footer: "🎙️ Powered by Zanta-XMD",
       buttons: [
-        { buttonId: `songvoice_${video.url}`, buttonText: { displayText: "🎧 Voice Note" }, type: 1 },
-        { buttonId: `songmp3_${video.url}`, buttonText: { displayText: "🎵 MP3 Audio" }, type: 1 }
+        { buttonId: `song4_voice_${video.url}`, buttonText: { displayText: "🎧 Voice Note" }, type: 1 },
+        { buttonId: `song4_mp3_${video.url}`, buttonText: { displayText: "🎵 MP3 Audio" }, type: 1 }
       ],
       headerType: 4
     });
@@ -73,18 +80,19 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
   }
 }
 
-// ✅ Convert & send audio (shared function)
+// ========================
+// 🎶 Convert & Send Audio
+// ========================
 async function sendAudio(conn, jid, url, type) {
   const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(url)}&format=mp3&apikey=sadiya`;
-  const { data } = await axios.get(apiUrl);
-
-  if (!data.status || !data.result?.download)
-    return conn.sendMessage(jid, { text: "⚠️ Download link fetch එක fail!" });
-
-  const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
-  const opusPath = path.join(__dirname, `${Date.now()}.opus`);
 
   try {
+    const { data } = await axios.get(apiUrl);
+    if (!data.status || !data.result?.download)
+      return conn.sendMessage(jid, { text: "⚠️ Download link එක ගන්න බැරිවුණා!" });
+
+    const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
+    const opusPath = path.join(__dirname, `${Date.now()}.opus`);
     await downloadFile(data.result.download, mp3Path);
 
     if (type === "voice") {
@@ -101,17 +109,19 @@ async function sendAudio(conn, jid, url, type) {
         fileName: "ZantaSong.mp3",
       });
     }
+
+    // Clean temp files
+    [mp3Path, opusPath].forEach(f => fs.existsSync(f) && fs.unlinkSync(f));
+
   } catch (err) {
-    console.error("Error sending audio:", err);
-    await conn.sendMessage(jid, { text: "😢 Audio එක load වෙන්න fail උනා." });
-  } finally {
-    for (const file of [mp3Path, opusPath]) {
-      try { fs.existsSync(file) && fs.unlinkSync(file); } catch {}
-    }
+    console.error("Audio send error:", err);
+    conn.sendMessage(jid, { text: "😢 Audio එක load වෙන්න fail උනා." });
   }
 }
 
-// ✅ Main preview command (.song4)
+// ========================
+// 🎵 Command: .song4
+// ========================
 cmd({
   pattern: "song4",
   desc: "Search Sinhala slowed/reverb song and send with buttons",
@@ -119,15 +129,15 @@ cmd({
   filename: __filename,
 }, async (conn, mek, m, { args, reply }) => {
   const text = args && args.length > 0 ? args.join(" ") : "";
-  if (!text) return reply("🎵 ගීතයෙ නම type කරන්න!\n\nඋදාහරණය: *.song4 sanda wage da*");
+  if (!text) return reply("🎵 ගීතයේ නම type කරන්න!\n\nඋදා: *.song4 sanda wage da*");
   await sendSinhalaSong(conn, m.chat, reply, text);
 });
 
-// ✅ Handle Button Clicks (for new commands)
+// ========================
+// 🎛️ Handle Button Clicks
+// ========================
 cmd({ on: "message" }, async (conn, mek, m) => {
   let buttonId;
-
-  // detect both old/new WhatsApp formats
   if (m?.message?.buttonsResponseMessage) {
     buttonId = m.message.buttonsResponseMessage.selectedButtonId;
   } else if (m?.message?.interactiveResponseMessage?.nativeFlowResponseMessage) {
@@ -139,41 +149,42 @@ cmd({ on: "message" }, async (conn, mek, m) => {
   if (!buttonId) return;
 
   const jid = m.key.remoteJid;
-  if (buttonId.startsWith("songvoice_")) {
-    await sendAudio(conn, jid, buttonId.replace("songvoice_", ""), "voice");
-  } else if (buttonId.startsWith("songmp3_")) {
-    await sendAudio(conn, jid, buttonId.replace("songmp3_", ""), "mp3");
+
+  if (buttonId.startsWith("song4_voice_")) {
+    await sendAudio(conn, jid, buttonId.replace("song4_voice_", ""), "voice");
+  } else if (buttonId.startsWith("song4_mp3_")) {
+    await sendAudio(conn, jid, buttonId.replace("song4_mp3_", ""), "mp3");
   }
 });
 
-// ✅ Direct Sinhala Voice Command (.songvoice)
+// ========================
+// 🎤 Manual Voice Command
+// ========================
 cmd({
-  pattern: "songvoice",
-  desc: "Download Sinhala slowed/reverb song as WhatsApp voice note",
+  pattern: "voice",
+  desc: "Download Sinhala song as voice note (opus)",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { args, reply }) => {
   const text = args && args.length > 0 ? args.join(" ") : "";
-  if (!text) return reply("🎧 Voice එකක් ඕන නම්: *.songvoice sanda wage da*");
-
+  if (!text) return reply("🎧 Voice එකක් ඕන නම්: *.voice sanda wage da*");
   const search = await yts(`${text} sinhala slowed reverb song`);
   if (!search.videos?.length) return reply("❌ Song එකක් හොයාගන්න බැරිවුණා!");
-
   await sendAudio(conn, m.chat, search.videos[0].url, "voice");
 });
 
-// ✅ Direct Sinhala MP3 Command (.songmp3)
+// ========================
+// 🎵 Manual MP3 Command
+// ========================
 cmd({
-  pattern: "songmp3",
-  desc: "Download Sinhala slowed/reverb song as MP3",
+  pattern: "mp3",
+  desc: "Download Sinhala song as mp3",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { args, reply }) => {
   const text = args && args.length > 0 ? args.join(" ") : "";
-  if (!text) return reply("🎵 MP3 එකක් ඕන නම්: *.songmp3 sanda wage da*");
-
+  if (!text) return reply("🎵 MP3 එකක් ඕන නම්: *.mp3 sanda wage da*");
   const search = await yts(`${text} sinhala slowed reverb song`);
   if (!search.videos?.length) return reply("❌ Song එකක් හොයාගන්න බැරිවුණා!");
-
   await sendAudio(conn, m.chat, search.videos[0].url, "mp3");
 });
