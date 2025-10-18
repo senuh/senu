@@ -20,7 +20,7 @@ const styles = [
   "sinhala boot slowed song",
 ];
 
-// 🧩 File Downloader
+// 🧩 Download File
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -58,13 +58,10 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
 
     const caption = `🎶 *${video.title}* 🎶
 
-> 💆‍♂️ Mind Relaxing Sinhala Song 💆‍♀️  
-> 🎧 Use headphones for best experience.  
-> ⚡ Powered by *ZANTA-XMD BOT*
+> 💆‍♂️ Mind Relaxing Sinhala Song  
+> 🎧 Use headphones for best vibe.
+> ⚡ Powered by ZANTA-XMD BOT`;
 
-00:00 ───●────────── ${video.timestamp}`;
-
-    // 📸 Song preview with menu buttons
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
@@ -73,9 +70,9 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
         { buttonId: 'next_song', buttonText: { displayText: '🎵 Next Song' }, type: 1 },
         { buttonId: 'stop_auto', buttonText: { displayText: '⛔ Stop Auto' }, type: 1 },
       ],
+      headerType: 4,
     });
 
-    // 🎵 Download & Convert
     const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
     const { data } = await axios.get(apiUrl);
 
@@ -88,7 +85,6 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
     await downloadFile(data.result.download, mp3Path);
     await convertToOpus(mp3Path, opusPath);
 
-    // 🎙️ Send voice note
     await conn.sendMessage(targetJid, {
       audio: fs.readFileSync(opusPath),
       mimetype: 'audio/ogg; codecs=opus',
@@ -104,7 +100,7 @@ async function sendSinhalaSong(conn, targetJid, reply, query) {
   }
 }
 
-// 🎶 .sinhalavoice Command
+// 🎶 Main Command
 cmd({
   pattern: "sinhalavoice",
   desc: "Auto Sinhala slowed songs with button controls",
@@ -112,34 +108,23 @@ cmd({
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
   const targetJid = m.chat;
+  const isChannel = targetJid.includes('@newsletter');
 
-  // Check for channel
-  const isChannel = !!m.isChannel || (m.key?.remoteJid?.includes('@newsletter'));
-
-  if (autoSongInterval) return reply("🟡 Auto mode already running!");
+  if (autoSongInterval) return reply("🟡 Already running!");
 
   if (isChannel) {
     await conn.sendMessage(targetJid, {
-      text: `🎧 *Auto Sinhala Slowed Songs Activated!*  
-
-You will now get a new Sinhala slowed song every 20 minutes.  
-───────────────
-➡️ To skip: send *Next Song*
-➡️ To stop: send *.stop3*
-───────────────
-🪩 *Channel Mode Active — Buttons Disabled*`,
+      text: "🎧 *Auto Sinhala Songs started!* (Buttons disabled in channels)",
     });
   } else {
     await conn.sendMessage(targetJid, {
-      text: `🎧 *Auto Sinhala Slowed Songs Activated!*  
-
-You will now get a new Sinhala slowed song every 20 minutes.  
-Use the menu below to control playback 👇`,
-      footer: "🎵 Sinhala Vibe Bot Menu",
+      text: "🎧 *Auto Sinhala Songs started!*",
+      footer: "🎵 Sinhala Song Controls",
       buttons: [
         { buttonId: 'next_song', buttonText: { displayText: '🎵 Next Song' }, type: 1 },
         { buttonId: 'stop_auto', buttonText: { displayText: '⛔ Stop Auto' }, type: 1 },
       ],
+      headerType: 4,
     });
   }
 
@@ -152,32 +137,39 @@ Use the menu below to control playback 👇`,
   autoSongInterval = setInterval(sendRandom, 20 * 60 * 1000);
 });
 
-// 🛑 Stop command
+// 🛑 Stop Command
 cmd({
   pattern: "stop3",
-  desc: "Stop automatic Sinhala slowed songs",
+  desc: "Stop Sinhala song auto mode",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { reply }) => {
-  if (!autoSongInterval) return reply("⛔ Auto mode is not running.");
+  if (!autoSongInterval) return reply("⛔ Not running.");
   clearInterval(autoSongInterval);
   autoSongInterval = null;
-  reply("🛑 Auto Sinhala slowed songs stopped.");
+  reply("🛑 Auto Sinhala songs stopped.");
 });
 
-// 🎵 Handle Button Responses
+// 🎵 Button Events — works with all Baileys versions
 cmd({
-  on: "buttonsResponseMessage",
-}, async (conn, mek, m, { buttonId, reply }) => {
-  console.log("🎯 Button clicked:", buttonId);
+  on: "message",
+}, async (conn, mek, m, { reply }) => {
+  try {
+    const buttonId = m.message?.buttonsResponseMessage?.selectedButtonId;
+    if (!buttonId) return;
 
-  if (buttonId === "next_song") {
-    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-    await sendSinhalaSong(conn, m.chat, reply, randomStyle);
-  } else if (buttonId === "stop_auto") {
-    if (!autoSongInterval) return reply("⚠️ Auto mode is not running.");
-    clearInterval(autoSongInterval);
-    autoSongInterval = null;
-    reply("🛑 Auto Sinhala slowed songs stopped.");
+    if (buttonId === 'next_song') {
+      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+      await sendSinhalaSong(conn, m.chat, reply, randomStyle);
+    }
+
+    if (buttonId === 'stop_auto') {
+      if (!autoSongInterval) return reply("⚠️ Not running.");
+      clearInterval(autoSongInterval);
+      autoSongInterval = null;
+      reply("🛑 Auto Sinhala slowed songs stopped.");
+    }
+  } catch (e) {
+    console.error(e);
   }
 });
