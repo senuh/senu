@@ -21,7 +21,6 @@ const styles = [
   "sinhala boot slowed song",
 ];
 
-// 🧩 Download file safely
 async function downloadFile(url, outputPath) {
   const writer = fs.createWriteStream(outputPath);
   const response = await axios.get(url, { responseType: 'stream' });
@@ -32,7 +31,6 @@ async function downloadFile(url, outputPath) {
   });
 }
 
-// 🧩 Convert mp3 → opus (WhatsApp voice format)
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -45,7 +43,7 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🧠 Send Sinhala Song (with command buttons)
+// 🎶 Send Sinhala slowed song (voice or mp3)
 async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, asMp3 = false) {
   try {
     const search = await yts(query);
@@ -55,10 +53,8 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
     });
     if (!video) return reply("😭 No suitable song found.");
 
-    if (sentSongUrls.has(video.url) && !asVoice && !asMp3) return;
-    sentSongUrls.add(video.url);
-
     const caption = `🎵 *${video.title}*
+
 > 💆‍♂️ ᴍɪɴᴅ ʀᴇʟᴀxɪɴɢ ꜱɪɴʜᴀʟᴀ ꜱʟᴏᴡᴇᴅ ꜱᴏɴɢ 💆❤‍🩹  
 ▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬  
 00:00 ───●────────── ${video.timestamp}   
@@ -66,7 +62,6 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
 🎧 Use Headphones for Best Experience  
 ⚙️ Powered by *Zanta-XMD Bot*`;
 
-    // 🎛 Send buttons (each triggers a command)
     await conn.sendMessage(targetJid, {
       image: { url: video.thumbnail },
       caption,
@@ -79,7 +74,6 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
       headerType: 4
     });
 
-    // direct voice/mp3 sending logic
     if (asVoice || asMp3) {
       const apiUrl = `https://sadiya-tech-apis.vercel.app/download/ytdl?url=${encodeURIComponent(video.url)}&format=mp3&apikey=sadiya`;
       const { data } = await axios.get(apiUrl);
@@ -106,24 +100,42 @@ async function sendSinhalaSong(conn, targetJid, reply, query, asVoice = false, a
         if (fs.existsSync(opusPath)) fs.unlinkSync(opusPath);
       }
     }
+
   } catch (err) {
     console.error("Send error:", err);
     reply("😭 Something went wrong while sending the song.");
   }
 }
 
-// 🎵 .song — Main Sinhala Slowed Song (with buttons)
+// 🎵 .song — Now shows Welcome Buttons if no text
 cmd({
   pattern: "song4",
-  desc: "Download Sinhala slowed song by name (with buttons)",
+  desc: "Download Sinhala slowed song by name (with welcome buttons)",
   category: "music",
   filename: __filename,
-}, async (conn, mek, m, { text, reply }) => {
-  if (!text) return reply("🎵 Please enter a song name!\n\n👉 Example: *.song sanda wage da*");
-  await sendSinhalaSong(conn, m.chat, reply, text);
+}, async (conn, mek, m, { text }) => {
+  if (!text) {
+    await conn.sendMessage(m.chat, {
+      image: { url: "https://i.ibb.co/SR7HX7m/musicbot.jpg" },
+      caption: `✨ *Welcome to Sinhala Slowed Song Downloader!* ✨
+
+🎶 Relax, chill, and feel the Sinhala vibes 💫  
+Choose your mood below 👇`,
+      footer: "Zanta-XMD Bot 🎧",
+      buttons: [
+        { buttonId: ".song sinhala slowed reverb song", buttonText: { displayText: "🎵 Random Song" }, type: 1 },
+        { buttonId: ".song sinhala love slowed song", buttonText: { displayText: "💞 Love Song" }, type: 1 },
+        { buttonId: ".song sinhala sad slowed song", buttonText: { displayText: "😢 Sad Song" }, type: 1 },
+      ],
+      headerType: 4
+    });
+    return;
+  }
+
+  await sendSinhalaSong(conn, m.chat, (msg) => conn.sendMessage(m.chat, { text: msg }), text);
 });
 
-// 🎙 .songvoice — Send Sinhala song as voice note
+// 🎙 Voice command
 cmd({
   pattern: "songvoice",
   desc: "Send Sinhala slowed song as voice note",
@@ -134,10 +146,10 @@ cmd({
   await sendSinhalaSong(conn, m.chat, reply, text, true, false);
 });
 
-// 💾 .songmp3 — Send Sinhala song as MP3
+// 💾 MP3 command
 cmd({
   pattern: "songmp3",
-  desc: "Send Sinhala slowed song as normal MP3",
+  desc: "Send Sinhala slowed song as MP3",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { text, reply }) => {
