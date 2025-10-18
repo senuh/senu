@@ -10,7 +10,7 @@ const { downloadContentFromMessage } = require("@whiskeysockets/baileys");
 
 cmd(
   {
-    pattern: "privacy",
+    pattern: "privacy1",
     alias: ["privacymenu", "privmenu"],
     desc: "Full privacy settings control panel",
     category: "privacy",
