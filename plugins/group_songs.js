@@ -63,8 +63,8 @@ async function sendSinhalaSong(conn, jid, reply, query) {
       caption,
       footer: "🎵 Sinhala Vibe Menu",
       buttons: [
-        { buttonId: "next_song", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
-        { buttonId: "stop_auto", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+        { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
+        { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
       ],
       headerType: 4,
     });
@@ -74,8 +74,9 @@ async function sendSinhalaSong(conn, jid, reply, query) {
 
     if (!data.status || !data.result?.download) return reply("⚠️ Couldn't fetch mp3 link.");
 
-    const mp3Path = path.join(__dirname, `${Date.now()}.mp3`);
-    const opusPath = path.join(__dirname, `${Date.now()}.opus`);
+    const unique = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const mp3Path = path.join(__dirname, `${unique}.mp3`);
+    const opusPath = path.join(__dirname, `${unique}.opus`);
 
     await downloadFile(data.result.download, mp3Path);
     await convertToOpus(mp3Path, opusPath);
@@ -86,8 +87,8 @@ async function sendSinhalaSong(conn, jid, reply, query) {
       ptt: true,
     });
 
-    fs.unlinkSync(mp3Path);
-    fs.unlinkSync(opusPath);
+    try { fs.unlinkSync(mp3Path); } catch {}
+    try { fs.unlinkSync(opusPath); } catch {}
 
   } catch (err) {
     console.error("Send error:", err);
@@ -112,8 +113,8 @@ You'll get a new Sinhala slowed song every 20 minutes.
 Use the menu below to control playback 👇`,
     footer: "🎵 Sinhala Vibe Menu",
     buttons: [
-      { buttonId: "next_song", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
-      { buttonId: "stop_auto", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+      { buttonId: ".nextsong", buttonText: { displayText: "🎵 Next Song" }, type: 1 },
+      { buttonId: ".stop3", buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
     ],
     headerType: 4,
   });
@@ -127,40 +128,20 @@ Use the menu below to control playback 👇`,
   autoSongIntervals[jid] = setInterval(sendRandom, 20 * 60 * 1000);
 });
 
-// ---------------- Button Events ----------------
-cmd({ on: "message" }, async (conn, m) => {
-  try {
-    // Detect new button types (Baileys >= 6.5)
-    const btn =
-      m.message?.templateButtonReplyMessage?.selectedId ||
-      m.message?.buttonsResponseMessage?.selectedButtonId;
-    if (!btn) return;
-
-    const chatId = m.key.remoteJid;
-    console.log("🎛 Button clicked:", btn);
-
-    if (btn === "next_song") {
-      await conn.sendMessage(chatId, { text: "✅ Loading next Sinhala slowed song..." });
-      const randomStyle = styles[Math.floor(Math.random() * styles.length)];
-      await sendSinhalaSong(conn, chatId, (t) => conn.sendMessage(chatId, { text: t }), randomStyle);
-    }
-
-    if (btn === "stop_auto") {
-      await conn.sendMessage(chatId, { text: "🛑 Stopping auto Sinhala songs..." });
-      if (autoSongIntervals[chatId]) {
-        clearInterval(autoSongIntervals[chatId]);
-        delete autoSongIntervals[chatId];
-        await conn.sendMessage(chatId, { text: "✅ Auto Sinhala slowed songs stopped." });
-      } else {
-        await conn.sendMessage(chatId, { text: "⚠️ Auto mode not running." });
-      }
-    }
-  } catch (e) {
-    console.error("Button error:", e);
-  }
+// ---------------- Next Song ----------------
+cmd({
+  pattern: "nextsong",
+  desc: "Play next Sinhala slowed song immediately",
+  category: "music",
+  filename: __filename,
+}, async (conn, mek, m, { reply }) => {
+  const jid = m.chat;
+  reply("✅ Loading next Sinhala slowed song...");
+  const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+  await sendSinhalaSong(conn, jid, reply, randomStyle);
 });
 
-// ---------------- Manual Stop ----------------
+// ---------------- Stop Auto ----------------
 cmd({
   pattern: "stop3",
   desc: "Stop automatic Sinhala slowed songs",
