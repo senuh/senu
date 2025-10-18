@@ -644,61 +644,76 @@ cmd({
   }
 });
 
-//================= FEEDBACK SYSTEM (Updated with View Details Panel) =================
+//================= FULL BUTTON FEEDBACK SYSTEM (With Owner Notification Buttons) =================
 cmd({
   pattern: "feedback",
-  desc: "Send song feedback to bot owner with detailed view",
+  desc: "Send full feedback (good/bad) with buttons + owner notification buttons",
   category: "music",
   filename: __filename,
 }, async (conn, mek, m, { args, reply }) => {
   const type = args[0];
-  const songName = args.slice(1).join(" ") || "Unknown Song";
+  const songName = args.slice(1).join(" ") || "Unknown Song 🎶";
   const senderNum = m.sender.split("@")[0];
   const user = m.pushName || senderNum;
-  const groupName = m.isGroup ? "Group Chat" : "Private Chat";
+  const groupName = m.isGroup ? "👥 Group Chat" : "💬 Private Chat";
   const ownerJid = OWNER_JID;
   const mood = detectMood(songName);
 
-  let msgText, emoji;
-  if (type === "good") {
-    emoji = "🩷";
-    msgText = `${emoji} *Positive Feedback!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Liked the song\n🎶 Song: ${songName}\n🌀 Mood: ${mood.toUpperCase()}\n📍 Chat: ${groupName}`;
-    await reply(`${emoji} ඔබගේ අදහස Owner ට යවන ලදි ✅`);
-  } else if (type === "bad") {
-    emoji = "💔";
-    msgText = `${emoji} *Negative Feedback!*\n👤 User: ${user}\n📞 wa.me/${senderNum}\n💬 Reaction: Didn't like the song\n🎶 Song: ${songName}\n🌀 Mood: ${mood.toUpperCase()}\n📍 Chat: ${groupName}`;
-    await reply(`${emoji} ඔබගේ අදහස Owner ට යවන ලදි 😢`);
-  } else return reply("⚠️ වැරදි feedback command එකක්!");
-
-  try {
-    // send feedback to owner
-    await conn.sendMessage(ownerJid, { text: msgText });
-
-    // show details panel to user
-    await conn.sendMessage(m.chat, {
-      text: `${emoji} *ඔයාගේ අදහස සාර්ථකව යවන ලදි!*\nඔයාගේ විස්තර පහතින් බලන්න 👇`,
-      footer: `${emoji} Sinhala Song Feedback • ZANTA-XMD BOT`,
+  if (!["good", "bad"].includes(type)) {
+    return conn.sendMessage(m.chat, {
+      text: "⚠️ වැරදි feedback command එකක්!\n\nUse:\n.feedback good [song name]\n.feedback bad [song name]",
+      footer: "🩷 Sinhala Song Feedback • ZANTA-XMD BOT",
       buttons: [
-        { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 බලන්න - විස්තර" }, type: 1 },
-        { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
-        { buttonId: `.contactowner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
+        { buttonId: ".feedback good", buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
+        { buttonId: ".feedback bad", buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
       ],
       headerType: 4,
     });
-
-  } catch (err) {
-    console.error("Error sending feedback to owner:", err);
   }
+
+  // Identify mood & type
+  const emoji = type === "good" ? "🩷" : "💔";
+  const reactionText = type === "good" ? "🩷 හොඳයි (Liked)" : "💔 හොඳ නෑ (Disliked)";
+  const moodText = type === "good" ? "ඔයාට මේ සින්දුවට කැමතියි 🥰" : "ඔයාට මේ සින්දුව හොඳ නෑ වගේ 😢";
+
+  //=========== OWNER NOTIFICATION ===========
+  const ownerMsg = `${emoji} *New ${type === "good" ? "Positive" : "Negative"} Feedback!*\n\n👤 *User:* ${user}\n📞 *Number:* wa.me/${senderNum}\n🎶 *Song:* ${songName}\n🌀 *Mood:* ${mood.toUpperCase()}\n💬 *Reaction:* ${reactionText}\n📍 *Chat:* ${groupName}`;
+
+  await conn.sendMessage(ownerJid, {
+    text: ownerMsg,
+    footer: "📩 Sinhala Song Bot • User Feedback Alert",
+    buttons: [
+      { buttonId: `.replyuser ${senderNum}`, buttonText: { displayText: "💬 Reply to User" }, type: 1 },
+      { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 View Details" }, type: 1 },
+      { buttonId: `.contactuser ${senderNum}`, buttonText: { displayText: "📞 Contact User" }, type: 1 },
+      { buttonId: `.blockuser ${senderNum}`, buttonText: { displayText: "🚫 Block User" }, type: 1 },
+    ],
+    headerType: 4,
+  });
+
+  //=========== USER FEEDBACK CONFIRM ===========
+  await conn.sendMessage(m.chat, {
+    text: `${emoji} *ඔයාගේ අදහස සාර්ථකව Owner ට යවන ලදි!*\n${moodText}\n\nඔයාගේ විස්තර බලන්න හෝ වෙනත් ක්‍රියාකාරකම් තෝරන්න 👇`,
+    footer: `${emoji} Sinhala Song Feedback • ZANTA-XMD BOT`,
+    buttons: [
+      { buttonId: `.viewdetails ${encodeURIComponent(songName)} ${type}`, buttonText: { displayText: "👤 බලන්න - විස්තර" }, type: 1 },
+      { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
+      { buttonId: `.contactowner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
+      { buttonId: `.stop3`, buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
+    ],
+    headerType: 4,
+  });
 });
 
-//================= VIEW DETAILS PANEL =================
+
+//================= VIEW DETAILS (Button Version) =================
 cmd({
   pattern: "viewdetails",
-  desc: "View user feedback details with buttons",
+  desc: "View user feedback details (button menu)",
   category: "music",
   filename: __filename,
-}, async (conn, mek, m, { args, reply }) => {
-  const song = decodeURIComponent(args[0] || "Unknown Song");
+}, async (conn, mek, m, { args }) => {
+  const song = decodeURIComponent(args[0] || "Unknown Song 🎶");
   const type = args[1] || "unknown";
   const senderNum = m.sender.split("@")[0];
   const user = m.pushName || senderNum;
@@ -711,9 +726,10 @@ cmd({
     text: info,
     footer: `${emoji} Sinhala Song Feedback • ZANTA-XMD BOT`,
     buttons: [
+      { buttonId: `.feedback good ${encodeURIComponent(song)}`, buttonText: { displayText: "🩷 හොඳයි" }, type: 1 },
+      { buttonId: `.feedback bad ${encodeURIComponent(song)}`, buttonText: { displayText: "💔 හොඳ නෑ" }, type: 1 },
       { buttonId: `.nextsong`, buttonText: { displayText: "🎵 අලුත් සින්දුවක්" }, type: 1 },
       { buttonId: `.contactowner`, buttonText: { displayText: "📞 Owner එකට Contact" }, type: 1 },
-      { buttonId: `.stop3`, buttonText: { displayText: "⛔ Stop Auto" }, type: 1 },
     ],
     headerType: 4,
   });
