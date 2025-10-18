@@ -18,7 +18,7 @@ const styles = [
   "sinhala mashup slowed reverb",
 ];
 
-// 🔧 Helper — convert to Opus
+// 🔧 Convert to Opus format
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -31,7 +31,7 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🎵 Send Sinhala slowed song (voice note)
+// 🎵 Send Sinhala slowed song (with Play button)
 async function sendSinhalaSong(conn, chatId, reply, query) {
   try {
     const search = await yts(query);
@@ -40,43 +40,67 @@ async function sendSinhalaSong(conn, chatId, reply, query) {
     const v = search.videos[Math.floor(Math.random() * Math.min(5, search.videos.length))];
     const infoMsg = `🎶 *${v.title}*\n🕒 ${v.timestamp}\n🔗 ${v.url}\n\n> Mind relaxing Sinhala slowed reverb song 🎧`;
 
-    await conn.sendMessage(chatId, { image: { url: v.thumbnail }, caption: infoMsg });
+    const buttons = [
+      {
+        buttonId: `play_song_${v.videoId}`,
+        buttonText: { displayText: "🎧 Play Song" },
+        type: 1
+      }
+    ];
 
-    // Paths
-    const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
-    const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
-
-    // 🌀 Download YouTube audio
-    const stream = ytdl(v.url, { filter: 'audioonly', quality: 'highestaudio' });
-    await new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(tmpMp4);
-      stream.pipe(file);
-      file.on('finish', resolve);
-      file.on('error', reject);
-    });
-
-    await reply("🎧 Voice note එක සකස් වෙමින් පවතී...");
-
-    // 🎛 Convert to Opus
-    await convertToOpus(tmpMp4, tmpOpus);
-
-    // 🎤 Send as voice note
     await conn.sendMessage(chatId, {
-      audio: fs.readFileSync(tmpOpus),
-      mimetype: 'audio/ogg; codecs=opus',
-      ptt: true, // make it a voice note
+      image: { url: v.thumbnail },
+      caption: infoMsg,
+      footer: "Tap 🎧 Play Song to listen!",
+      buttons,
+      headerType: 4
     });
-
-    // 🧹 Clean temp files
-    fs.unlinkSync(tmpMp4);
-    fs.unlinkSync(tmpOpus);
   } catch (err) {
     console.error(err);
-    reply("⚠️ Song එක play වෙද්දි error එකක් ඇති!");
+    reply("⚠️ Song එක load වෙද්දි error එකක් ඇති!");
   }
 }
 
-// 🎵 .song command
+// 🎧 Handle Play Button
+cmd({
+  onButton: true
+}, async (conn, mek, m, { buttonId, reply, from }) => {
+  if (buttonId.startsWith('play_song_')) {
+    const videoId = buttonId.replace('play_song_', '');
+    const url = `https://www.youtube.com/watch?v=${videoId}`;
+
+    await reply("🎧 Song එක සකස් වෙමින් පවතී...");
+
+    try {
+      const tmpMp4 = path.join(__dirname, `${Date.now()}.mp4`);
+      const tmpOpus = path.join(__dirname, `${Date.now()}.opus`);
+
+      const stream = ytdl(url, { filter: 'audioonly', quality: 'highestaudio' });
+      await new Promise((resolve, reject) => {
+        const file = fs.createWriteStream(tmpMp4);
+        stream.pipe(file);
+        file.on('finish', resolve);
+        file.on('error', reject);
+      });
+
+      await convertToOpus(tmpMp4, tmpOpus);
+
+      await conn.sendMessage(from, {
+        audio: fs.readFileSync(tmpOpus),
+        mimetype: 'audio/ogg; codecs=opus',
+        ptt: true
+      });
+
+      fs.unlinkSync(tmpMp4);
+      fs.unlinkSync(tmpOpus);
+    } catch (err) {
+      console.error(err);
+      reply("⚠️ Song එක play වෙද්දි error එකක් ඇති!");
+    }
+  }
+});
+
+// 🎵 .song command — ask user for Sinhala song name
 cmd({
   pattern: "song",
   desc: "Ask user for Sinhala slowed song name",
@@ -107,7 +131,7 @@ cmd({
   conn.on('messages.upsert', handler);
 });
 
-// ⏭️ .nextsong
+// ⏭️ .nextsong — random Sinhala slowed song
 cmd({
   pattern: "nextsong",
   desc: "Play another Sinhala slowed song",
@@ -119,7 +143,7 @@ cmd({
   await sendSinhalaSong(conn, m.chat, reply, randomStyle);
 });
 
-// 👑 .owner2
+// 👑 .owner2 — bot owner contact
 cmd({
   pattern: "owner2",
   desc: "Send bot owner contact",
@@ -140,7 +164,7 @@ END:VCARD`.trim();
   await reply("👑 Owner contact shared!");
 });
 
-// 📢 .followchannel
+// 📢 .followchannel — WhatsApp Channel link
 cmd({
   pattern: "followchannel",
   desc: "Send WhatsApp Channel link",
