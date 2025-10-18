@@ -1,7 +1,6 @@
 const { cmd } = require('../lib/command');
 const fs = require('fs');
 const path = require('path');
-const axios = require('axios');
 const yts = require('yt-search');
 const ytdl = require('@distube/ytdl-core');
 const ffmpegPath = require('@ffmpeg-installer/ffmpeg').path;
@@ -18,7 +17,7 @@ const styles = [
   "sinhala mashup slowed reverb",
 ];
 
-// 🔧 Convert to Opus format
+// 🔧 Convert to Opus
 async function convertToOpus(inputPath, outputPath) {
   return new Promise((resolve, reject) => {
     ffmpeg(inputPath)
@@ -31,7 +30,7 @@ async function convertToOpus(inputPath, outputPath) {
   });
 }
 
-// 🎵 Send Sinhala slowed song (with Play button)
+// 🎵 Send Sinhala slowed song with Play button
 async function sendSinhalaSong(conn, chatId, reply, query) {
   try {
     const search = await yts(query);
@@ -61,7 +60,7 @@ async function sendSinhalaSong(conn, chatId, reply, query) {
   }
 }
 
-// 🎧 Handle Play Button
+// 🎧 Handle Play button clicks
 cmd({
   onButton: true
 }, async (conn, mek, m, { buttonId, reply, from }) => {
@@ -100,35 +99,18 @@ cmd({
   }
 });
 
-// 🎵 .song command — ask user for Sinhala song name
+// 🎵 .song command — now works with argument directly
 cmd({
   pattern: "song",
-  desc: "Ask user for Sinhala slowed song name",
+  desc: "Download Sinhala slowed song with play button",
   category: "music",
   filename: __filename,
-}, async (conn, mek, m, { reply, from }) => {
-  await reply("🎵 කරුණාකර සිංදුවේ නම type කරන්න (උදා: *Pahasara*)");
+}, async (conn, mek, m, { args, reply, from }) => {
+  const query = args.join(" ");
+  if (!query) return reply("🎵 කරුණාකර සිංදුවේ නම type කරන්න (උදා: *.song Pahasara*)");
 
-  const handler = async (msg) => {
-    try {
-      const sender = mek.key.participant || mek.key.remoteJid;
-      if (!msg.key.fromMe && msg.key.remoteJid === from && msg.key.participant === sender) {
-        const text = msg.message?.conversation || msg.message?.extendedTextMessage?.text;
-        if (!text) return;
-
-        await reply("🎧 Song එක load වෙමින් පවතී...");
-        await sendSinhalaSong(conn, from, reply, text + " slowed reverb sinhala song");
-
-        conn.off('messages.upsert', handler);
-      }
-    } catch (err) {
-      console.error(err);
-      reply("⚠️ Error while loading song!");
-      conn.off('messages.upsert', handler);
-    }
-  };
-
-  conn.on('messages.upsert', handler);
+  await reply("🎧 Song එක load වෙමින් පවතී...");
+  await sendSinhalaSong(conn, from, reply, query + " sinhala slowed reverb song");
 });
 
 // ⏭️ .nextsong — random Sinhala slowed song
@@ -143,7 +125,7 @@ cmd({
   await sendSinhalaSong(conn, m.chat, reply, randomStyle);
 });
 
-// 👑 .owner2 — bot owner contact
+// 👑 .owner2
 cmd({
   pattern: "owner2",
   desc: "Send bot owner contact",
@@ -164,7 +146,7 @@ END:VCARD`.trim();
   await reply("👑 Owner contact shared!");
 });
 
-// 📢 .followchannel — WhatsApp Channel link
+// 📢 .followchannel
 cmd({
   pattern: "followchannel",
   desc: "Send WhatsApp Channel link",
